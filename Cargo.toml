@@ -6,3 +6,6 @@ edition = "2018"
 
 [dependencies]
 byteorder = "1"
+
+[dependencies.rs2_macro]
+path = "./rs2_macro"

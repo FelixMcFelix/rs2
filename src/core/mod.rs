@@ -1,11 +1,6 @@
 use byteorder::{
-	BigEndian,
 	LittleEndian,
-	ReadBytesExt,
-};
-use std::{
-	fs::File,
-	io::Read,
+	ByteOrder,
 };
 
 pub const REGISTER_WIDTH: usize = 128;
@@ -62,26 +57,39 @@ impl EECore {
 	// Misaligned data can be handled through specific instructions...
 
 	/// 
-	pub fn read_register(&self, index: usize) -> u64 {
+	pub fn read_register(&self, index: u8) -> u64 {
 		0
 	}
 
 	/// Write a value to the specified register. Writes to R0 will have NO effect.
-	pub fn write_register(&mut self, index: usize) -> Option<()> {
+	pub fn write_register(&mut self, index: u8, value: u64) -> Option<()> {
 		Some(())
 	}
 
 	pub fn cycle(&mut self, program: &[u8]) {
 		// Read and parse two instructions, put them into the pipeline.
+		let pc = self.pc_register as usize;
 
-		&program[pc..pc+OPCODE_LENGTH_BYTES].read_u32::<LittleEndian>();
-		&program[pc+OPCODE_LENGTH_BYTES..pc+OPCODE_LENGTH_BYTES+OPCODE_LENGTH_BYTES].read_u32::<LittleEndian>();
+		let i1 = LittleEndian::read_u32(&program[pc..pc+OPCODE_LENGTH_BYTES]);
+		let i2 = LittleEndian::read_u32(&program[pc+OPCODE_LENGTH_BYTES..pc+OPCODE_LENGTH_BYTES+OPCODE_LENGTH_BYTES]);
 
 		// IDEA: Skip I, Q, lead in with R. Pass these off to the correct physical pipelines
+		execute_instruction(self, i1);
+		execute_instruction(self, i2);
 	}
 
 	// pub fn read_instruction
 
+}
+
+rs2_macro::ops!([
+	[(ADD, add, 0b100000, 1), (ADD, add, 0b100001, 1)],
+	[],
+	[],
+]);
+
+fn add(cpu: &mut EECore, rs: u8, rt: u8, rd: u8, _shamt: u8) {
+	cpu.write_register(rd, cpu.read_register(rs) + cpu.read_register(rt));
 }
 
 // PLAN: decode and read two-at-a-time, then place in pipelines like nothing happened.
@@ -100,7 +108,7 @@ enum OpCodeType {
 	Jump(JumpOpcode),
 }
 
-struct ImmediateOpCode{
+struct ImmediateOpCode {
 	source: u8,
 	target: u8,
 	immediate: u16,

@@ -1,11 +1,9 @@
 use byteorder::{
-	BigEndian,
 	LittleEndian,
 	ReadBytesExt,
 };
 use std::{
 	fs::File,
-	io::Read,
 };
 
 mod core;
