@@ -4,6 +4,8 @@ use quote::*;
 use syn::{
 	Expr,
 	ExprArray,
+	Macro,
+	Path,
 	parse_macro_input,
 };
 
@@ -52,24 +54,24 @@ pub fn ops(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 				}
 			}
 		},
-		_ => eprintln!("Innards had another type..."),
+		_ => panic!("Params given to ops macro were not in a list!"),
 	};
 
-	// Step one: write a "do op" action.
 	let op_fn = quote!{
-		pub fn process_instruction(cpu: &mut crate::core::EECore, instruction: u32) -> crate::core::OpCode {
-			let mut out = crate::core::OpCode::blank();
+		/// 
+		pub fn process_instruction(instruction: u32) -> crate::core::pipeline::OpCode {
+			let mut out = crate::core::pipeline::OpCode::default();
 			let op_code = instruction >> 26;
 
 			match op_code {
 				// R instructions
 				0 => {
 					let func = instruction & 0b00111111;
-					out.data = crate::core::OpData::register(instruction);
+					out.data = crate::core::pipeline::OpData::register(instruction);
 
 					match func {
 						#r_type_matches_tokens
-						_ => eprintln!(
+						_ => debug!(
 							"Unknown R-type instruction {:06b}: {:?}.",
 							func,
 							out.data,
@@ -77,10 +79,11 @@ pub fn ops(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 					}
 				},
 
+				// I, J instructions
 				#i_type_matches_tokens
 				#j_type_matches_tokens
 
-				_ => eprintln!(
+				_ => debug!(
 					"Unknown opcode {:06b}: data {:026b}.",
 					op_code,
 					(instruction << 6) >> 6,
@@ -109,8 +112,8 @@ fn r_type_matches(instructions: &ExprArray) -> proc_macro2::TokenStream {
 			match_parts.push(quote!{
 				#func_code => {
 					let lname = stringify!(#op_name);
-					eprintln!("{}; {:?}", lname, out.data);
-					out.action = &(#func_name as crate::core::EEAction);
+					trace!("{}; {:?}", lname, out.data);
+					out.action = &(#func_name as crate::core::pipeline::EEAction);
 					out.delay = #func_delay;
 				},
 			});

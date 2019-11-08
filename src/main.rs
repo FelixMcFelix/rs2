@@ -1,3 +1,5 @@
+#[macro_use] extern crate log;
+
 use byteorder::{
 	LittleEndian,
 	ReadBytesExt,
@@ -13,6 +15,8 @@ pub mod core;
 use crate::core::*;
 
 fn main() {
+	env_logger::init();
+	
 	let mut ee_core = EECore::new();
 
 	if let Ok(mut f) = File::open("bios/scph39001.bin") {
@@ -23,8 +27,6 @@ fn main() {
 		};
 
 		if f.read_to_end(&mut prog_buf).is_ok() {
-			// let active = true;
-			// while active {
 			loop {
 				ee_core.cycle(&prog_buf);
 			}

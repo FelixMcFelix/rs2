@@ -6,6 +6,8 @@ edition = "2018"
 
 [dependencies]
 byteorder = "1"
+env_logger = "0.7"
+log = "0.4"
 
 [dependencies.rs2_macro]
 path = "./rs2_macro"
