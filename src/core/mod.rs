@@ -74,8 +74,12 @@ impl EECore {
 		let i2 = LittleEndian::read_u32(&program[pc+OPCODE_LENGTH_BYTES..pc+OPCODE_LENGTH_BYTES+OPCODE_LENGTH_BYTES]);
 
 		// IDEA: Skip I, Q, lead in with R. Pass these off to the correct physical pipelines
-		execute_instruction(self, i1);
-		execute_instruction(self, i2);
+		let p1 = process_instruction(self, i1);
+		// println!("{:?}, {:?}", p1.data, p1.delay);
+		let p2 = process_instruction(self, i2);
+		// println!("{:?}, {:?}", p2.data, p2.delay);
+
+		self.pc_register += (OPCODE_LENGTH_BYTES as u32) << 1;
 	}
 
 	// pub fn read_instruction
@@ -88,8 +92,14 @@ rs2_macro::ops!([
 	[],
 ]);
 
-fn add(cpu: &mut EECore, rs: u8, rt: u8, rd: u8, _shamt: u8) {
-	cpu.write_register(rd, cpu.read_register(rs) + cpu.read_register(rt));
+fn add(cpu: &mut EECore, data: &OpData) {
+	if let OpData::Register(d) = data {
+		cpu.write_register(d.destination, cpu.read_register(d.source) + cpu.read_register(d.target));
+	}
+}
+
+fn nop(_cpu: &mut EECore, _data: &OpData) {
+	// No Op.
 }
 
 // PLAN: decode and read two-at-a-time, then place in pipelines like nothing happened.
@@ -97,33 +107,90 @@ fn add(cpu: &mut EECore, rs: u8, rt: u8, rd: u8, _shamt: u8) {
 
 const OPCODE_LENGTH_BYTES: usize = 4;
 
-struct OpCode {
-	op: OpCodeType,
-	action: &'static fn()->(),
+pub type EEAction = fn(&mut EECore, &OpData)->();
+
+pub struct OpCode {
+	data: OpData,
+	action: &'static EEAction,
+	delay: u8,
 }
 
-enum OpCodeType {
-	Immediate(ImmediateOpCode),
-	Register(RegisterOpCode),
-	Jump(JumpOpcode),
+impl OpCode {
+	pub fn blank() -> Self {
+		Self {
+			data: OpData::NoData,
+			action: &(nop as EEAction),
+			delay: 0,
+		}
+	}
 }
 
-struct ImmediateOpCode {
+#[derive(Debug)]
+pub enum OpData {
+	NoData,
+	Immediate(ImmediateOpData),
+	Register(RegisterOpData),
+	Jump(JumpOpData),
+}
+
+impl OpData {
+	pub fn immediate(instruction: u32) -> Self {
+		Self::Immediate(ImmediateOpData::new(instruction))
+	}
+
+	pub fn register(instruction: u32) -> Self {
+		Self::Register(RegisterOpData::new(instruction))
+	}
+}
+
+#[derive(Debug)]
+pub struct ImmediateOpData {
 	source: u8,
 	target: u8,
 	immediate: u16,
 }
 
-struct RegisterOpCode {
+impl ImmediateOpData {
+	pub fn new(instruction: u32) -> Self {
+		let immediate = (instruction & 0xFF_FF) as u16;
+		let target = ((instruction >> 16) & 0b00011111) as u8;
+		let source = ((instruction >> 21) & 0b00011111) as u8;
+
+		Self {
+			source,
+			target,
+			immediate,
+		}
+	}
+}
+
+#[derive(Debug)]
+pub struct RegisterOpData {
 	source: u8,
 	target: u8,
 	destination: u8,
 	shift_amount: u8,
 }
 
-type JumpOpcode = u32;
+impl RegisterOpData {
+	pub fn new(instruction: u32) -> Self {
+		let shift_amount = ((instruction >> 6)  & 0b00011111) as u8;
+		let destination = ((instruction >> 11) & 0b00011111) as u8;
+		let target = ((instruction >> 16) & 0b00011111) as u8;
+		let source = ((instruction >> 21) & 0b00011111) as u8;
 
-enum Pipeline {
+		Self {
+			source,
+			target,
+			destination,
+			shift_amount,
+		}
+	}
+}
+
+type JumpOpData = u32;
+
+pub enum Pipeline {
 	Free,
 	Reserved,
 	Active(OpCode),
