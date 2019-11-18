@@ -1,6 +1,8 @@
 mod constants;
 mod ops;
 mod pipeline;
+#[cfg(test)]
+mod tests;
 
 use byteorder::{
 	LittleEndian,
@@ -68,7 +70,11 @@ impl EECore {
 	/// Writes to R0 will have NO effect.
 	pub fn write_register(&mut self, index: u8, value: u64) -> Option<()> {
 		trace!("Writing value {} to register {}", value, index);
-		Some(())
+		if index != 0 {
+			Some(())
+		} else {
+			None
+		}
 	}
 
 	pub fn cycle(&mut self, program: &[u8]) {
