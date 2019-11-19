@@ -58,7 +58,7 @@ pub fn ops(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 	};
 
 	let op_fn = quote!{
-		/// 
+		/// Convert a 32-bit instruction into an [`OpCode`](pipeline/struct.OpCode.html), for later queueing/execution.
 		pub fn process_instruction(instruction: u32) -> crate::core::pipeline::OpCode {
 			let mut out = crate::core::pipeline::OpCode::default();
 			let op_code = instruction >> 26;

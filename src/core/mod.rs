@@ -1,6 +1,6 @@
 mod constants;
 mod ops;
-mod pipeline;
+pub mod pipeline;
 #[cfg(test)]
 mod tests;
 
@@ -63,7 +63,8 @@ impl EECore {
 	/// Note, register R0 will always return 0.
 	pub fn read_register(&self, index: u8) -> u64 {
 		trace!("Reading from register {}", index);
-		0
+		let floor = ((index as usize) * REGISTER_WIDTH_BYTES) + HALF_REGISTER_WIDTH_BYTES;
+		LittleEndian::read_u64(&self.register_file[floor..])
 	}
 
 	/// Write a value to the specified register.
@@ -71,6 +72,8 @@ impl EECore {
 	pub fn write_register(&mut self, index: u8, value: u64) -> Option<()> {
 		trace!("Writing value {} to register {}", value, index);
 		if index != 0 {
+			let floor = ((index as usize) * REGISTER_WIDTH_BYTES) + HALF_REGISTER_WIDTH_BYTES;
+			LittleEndian::write_u64(&mut self.register_file[floor..], value);
 			Some(())
 		} else {
 			None

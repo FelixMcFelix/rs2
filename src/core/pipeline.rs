@@ -3,8 +3,17 @@ use crate::core::{
 	EECore,
 };
 
+/// The function signature required by any CPU instruction.
+///
+/// Each is (internally) responsible for knowing/determining
+/// the correct way to decode [`OpData`](enum.OpData.html).
 pub type EEAction = fn(&mut EECore, &OpData)->();
 
+/// The queued form of a CPU instruction.
+///
+/// This contains the necessary data for execution, a function pointer,
+/// and a delay. An action is held in the relevant pipeline until its delay
+/// expires.
 pub struct OpCode {
 	pub data: OpData,
 	pub action: &'static EEAction,
@@ -21,6 +30,10 @@ impl Default for OpCode {
 	}
 }
 
+/// The type of the instruction being executed, and any function parameters.
+///
+/// Callee [`EEAction`s](type.EEAction.html) are responsible for knowing how to properly decode
+/// the internal data.
 #[derive(Debug)]
 pub enum OpData {
 	NoData,
@@ -39,6 +52,7 @@ impl OpData {
 	}
 }
 
+/// Datatype containing the fields needed to execute an I-type instruction.
 #[derive(Debug)]
 pub struct ImmediateOpData {
 	pub source: u8,
@@ -60,6 +74,7 @@ impl ImmediateOpData {
 	}
 }
 
+/// Datatype containing the fields needed to execute an R-type instruction.
 #[derive(Debug)]
 pub struct RegisterOpData {
 	pub source: u8,
@@ -84,8 +99,10 @@ impl RegisterOpData {
 	}
 }
 
+/// Datatype containing the fields needed to execute a J-type instruction.
 pub type JumpOpData = u32;
 
+/// Currently unused.
 pub enum Pipeline {
 	Free,
 	Reserved,
