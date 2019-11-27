@@ -30,12 +30,11 @@ use syn::{
 pub fn ops(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 	let parsed_input = parse_macro_input!(input as Expr);
 	let mut r_type_matches_tokens = None;
-	let mut i_type_matches_tokens = None;
-	let mut j_type_matches_tokens = None;
+	let mut ij_type_matches_tokens = None;
 
 	match parsed_input {
 		Expr::Array(outer_list) => {
-			assert!(outer_list.elems.len() == 3);
+			assert!(outer_list.elems.len() == 2);
 
 			for (i, el) in outer_list.elems.iter().enumerate() {
 				if let Expr::Array(instruction_list) = el {
@@ -44,10 +43,7 @@ pub fn ops(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 							r_type_matches_tokens = Some(r_type_matches(instruction_list));
 						},
 						1 => {
-							i_type_matches_tokens = Some(quote!{});
-						},
-						2 => {
-							j_type_matches_tokens = Some(quote!{});
+							ij_type_matches_tokens = Some(ij_type_matches(instruction_list));
 						},
 						_ => panic!("There is no additional instruction family here to handle..."),
 					}
@@ -59,33 +55,38 @@ pub fn ops(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
 	let op_fn = quote!{
 		/// Convert a 32-bit instruction into an [`OpCode`](pipeline/struct.OpCode.html), for later queueing/execution.
+		///
+		/// NOTE: You must import [`Instruction`](pipeline/trait.Instruction.html) in the same scope
+		/// as calling this macro and `FromPrimitive`.
 		pub fn process_instruction(instruction: u32) -> crate::core::pipeline::OpCode {
 			let mut out = crate::core::pipeline::OpCode::default();
-			let op_code = instruction >> 26;
+			out.raw = instruction;
 
-			match op_code {
+			let raw_opcode = instruction.get_opcode();
+			let opcode = crate::core::ops::constants::MipsOpcode::from_u8(raw_opcode);
+
+			match opcode {
 				// R instructions
-				0 => {
-					let func = instruction & 0b00111111;
-					out.data = crate::core::pipeline::OpData::register(instruction);
+				Some(crate::core::ops::constants::MipsOpcode::Special) => {
+					let raw_func = instruction.r_get_function();
+					let func = crate::core::ops::constants::MipsFunction::from_u8(raw_func);
 
 					match func {
 						#r_type_matches_tokens
 						_ => debug!(
-							"Unknown R-type instruction {:06b}: {:?}.",
-							func,
-							out.data,
+							"Unknown R-type instruction {:06b}: data {:020b}.",
+							raw_func,
+							(instruction << 6) >> 12,
 						),
 					}
 				},
 
 				// I, J instructions
-				#i_type_matches_tokens
-				#j_type_matches_tokens
+				#ij_type_matches_tokens
 
 				_ => debug!(
 					"Unknown opcode {:06b}: data {:026b}.",
-					op_code,
+					raw_opcode,
 					(instruction << 6) >> 6,
 				),
 			}
@@ -110,9 +111,35 @@ fn r_type_matches(instructions: &ExprArray) -> proc_macro2::TokenStream {
 			let op_name = elems.pop().unwrap().into_value();
 
 			match_parts.push(quote!{
-				#func_code => {
+				Some(#func_code) => {
 					let lname = stringify!(#op_name);
-					trace!("{}; {:?}", lname, out.data);
+					trace!("{}; {:?}", lname, (instruction << 6) >> 12);
+					out.action = &(#func_name as crate::core::pipeline::EEAction);
+					out.delay = #func_delay;
+				},
+			});
+		}
+	}
+
+	quote!{#(#match_parts)*}
+}
+
+fn ij_type_matches(instructions: &ExprArray) -> proc_macro2::TokenStream {
+	let mut match_parts = vec![];
+	for instruction in instructions.elems.clone().iter_mut() {
+		if let Expr::Tuple(ref mut instruction_data) = instruction {
+			let elems = &mut instruction_data.elems;
+
+			assert!(elems.len() == 4);
+			let func_delay = elems.pop().unwrap().into_value();
+			let func_code = elems.pop().unwrap().into_value();
+			let func_name = elems.pop().unwrap().into_value();
+			let op_name = elems.pop().unwrap().into_value();
+
+			match_parts.push(quote!{
+				Some(#func_code) => {
+					let lname = stringify!(#op_name);
+					trace!("{}; {:?}", lname, (instruction << 6) >> 6);
 					out.action = &(#func_name as crate::core::pipeline::EEAction);
 					out.delay = #func_delay;
 				},

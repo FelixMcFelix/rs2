@@ -99,6 +99,12 @@ impl EECore {
 	}
 
 	pub fn execute(&mut self, instruction: OpCode) {
-		(instruction.action)(self, &instruction.data);
+		(instruction.action)(self, &instruction);
+	}
+}
+
+impl Default for EECore {
+	fn default() -> Self {
+		Self::new()
 	}
 }
