@@ -6,17 +6,17 @@ const JUMP_MASK: u32 = 0x03_FF_FF_FF;
 /// Add methods to a standard 32-bit MIPS instruction to extract inidividual data
 /// or parameters, without requiring extra space.
 pub trait Instruction {
-	fn get_opcode(self) -> u8;
+	fn get_opcode(&self) -> u8;
 
-	fn ri_get_source(self) -> u8;
-	fn ri_get_target(self) -> u8;
-	fn r_get_destination(self) -> u8;
-	fn r_get_shift_amount(self) -> u8;
-	fn r_get_function(self) -> u8;
+	fn ri_get_source(&self) -> u8;
+	fn ri_get_target(&self) -> u8;
+	fn r_get_destination(&self) -> u8;
+	fn r_get_shift_amount(&self) -> u8;
+	fn r_get_function(&self) -> u8;
 
-	fn i_get_immediate(self) -> u16;
+	fn i_get_immediate(&self) -> u16;
 
-	fn j_get_jump(self) -> u32;
+	fn j_get_jump(&self) -> u32;
 
 	fn set_opcode(&mut self, v: u8);
 
@@ -33,42 +33,42 @@ pub trait Instruction {
 
 impl Instruction for u32 {
 	#[inline]
-	fn get_opcode(self) -> u8 {
+	fn get_opcode(&self) -> u8 {
 		(self >> 26) as u8
 	}
 
 	#[inline]
-	fn ri_get_source(self) -> u8 {
+	fn ri_get_source(&self) -> u8 {
 		((self >> 21) & REGISTER_MASK) as u8
 	}
 
 	#[inline]
-	fn ri_get_target(self) -> u8 {
+	fn ri_get_target(&self) -> u8 {
 		((self >> 16) & REGISTER_MASK) as u8
 	}
 
 	#[inline]
-	fn r_get_destination(self) -> u8 {
+	fn r_get_destination(&self) -> u8 {
 		((self >> 11) & REGISTER_MASK) as u8
 	}
 
 	#[inline]
-	fn r_get_shift_amount(self) -> u8 {
+	fn r_get_shift_amount(&self) -> u8 {
 		((self >> 6) & REGISTER_MASK) as u8
 	}
 
 	#[inline]
-	fn r_get_function(self) -> u8 {
+	fn r_get_function(&self) -> u8 {
 		(self &OP_MASK) as u8
 	}
 
 	#[inline]
-	fn i_get_immediate(self) -> u16 {
+	fn i_get_immediate(&self) -> u16 {
 		(self & 0xFF_FF) as u16
 	}
 
 	#[inline]
-	fn j_get_jump(self) -> u32 {
+	fn j_get_jump(&self) -> u32 {
 		self & 0x03_FF_FF_FF
 	}
 

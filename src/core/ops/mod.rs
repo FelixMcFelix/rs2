@@ -1,6 +1,7 @@
 mod arithmetic;
+mod branch;
 pub mod constants;
-mod instruction;
+pub mod instruction;
 
 use constants::*;
 use crate::core::{
@@ -12,10 +13,14 @@ use instruction::Instruction;
 
 rs2_macro::ops!([
 	[
-		(ADD, arithmetic::add, MipsFunction::Add, 1)
+		(ADD, arithmetic::add, MipsFunction::Add, 1),
+		(ADDU, arithmetic::addu, MipsFunction::AddU, 1),
+		(AND, arithmetic::and, MipsFunction::And, 1),
 	],
 	[
-		(ADDI, arithmetic::addi, MipsOpcode::AddI, 1)
+		(ADDI, arithmetic::addi, MipsOpcode::AddI, 1),
+		(ADDIU, arithmetic::addiu, MipsOpcode::AddIU, 1),
+		(J, branch::j, MipsOpcode::J, 1),
 	],
 ]);
 
@@ -49,6 +54,9 @@ pub fn build_op_immediate(opcode: MipsOpcode, source: u8, target: u8, immediate:
 	out
 }
 
+/// Build a jump opcode.
+///
+/// Assumes that `jump_target` can be represented using 26 bits.
 #[inline]
 pub fn build_op_jump(opcode: MipsOpcode, jump_target: u32) -> u32 {
 	let mut out = 0;
