@@ -3,7 +3,7 @@ mod branch;
 pub mod constants;
 pub mod instruction;
 
-use constants::*;
+pub use constants::*;
 use crate::core::{
 	pipeline::*,
 	EECore,
@@ -16,11 +16,14 @@ rs2_macro::ops!([
 		(ADD, arithmetic::add, MipsFunction::Add, 1),
 		(ADDU, arithmetic::addu, MipsFunction::AddU, 1),
 		(AND, arithmetic::and, MipsFunction::And, 1),
+		(JALR, branch::jalr, MipsFunction::JaLR, 1),
+		(JR, branch::jr, MipsFunction::JR, 1),
 	],
 	[
 		(ADDI, arithmetic::addi, MipsOpcode::AddI, 1),
 		(ADDIU, arithmetic::addiu, MipsOpcode::AddIU, 1),
 		(J, branch::j, MipsOpcode::J, 1),
+		(JAL, branch::jal, MipsOpcode::JaL, 1),
 	],
 ]);
 

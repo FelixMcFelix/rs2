@@ -11,6 +11,7 @@ use std::{
 };
 
 pub mod core;
+pub mod memory;
 
 use crate::core::*;
 

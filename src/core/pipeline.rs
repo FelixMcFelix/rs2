@@ -17,6 +17,7 @@ pub type EEAction = fn(&mut EECore, &OpCode)->();
 /// This contains the necessary data for execution, a function pointer,
 /// and a delay. An action is held in the relevant pipeline until its delay
 /// expires.
+#[derive(Clone, Copy)]
 pub struct OpCode {
 	pub raw: u32,
 	pub action: &'static EEAction,

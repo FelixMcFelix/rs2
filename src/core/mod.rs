@@ -9,7 +9,9 @@ use byteorder::{
 	ByteOrder,
 };
 use constants::*;
+use ops::NOP;
 use pipeline::*;
+use super::memory::constants::*;
 
 pub struct EECore {
 	pub register_file: [u8; REGISTER_FILE_SIZE],
@@ -17,6 +19,12 @@ pub struct EECore {
 	pub lo: [u8; REGISTER_WIDTH_BYTES],
 	pub sa_register: u32,
 	pub pc_register: u32,
+
+	/// Code held by a Branch-type instruction.
+	///
+	/// This should be executed and cleared *before* any instruction
+	/// passed via [`EECore::execute`](#method.execute).
+	pub branch_delay_slot: Option<OpCode>,
 }
 
 impl EECore {
@@ -27,7 +35,9 @@ impl EECore {
 			hi: [0u8; REGISTER_WIDTH_BYTES],
 			lo: [0u8; REGISTER_WIDTH_BYTES],
 			sa_register: 0,
-			pc_register: 0,
+			pc_register: KSEG1_START as u32,
+
+			branch_delay_slot: None,
 		}
 	}
 
@@ -80,12 +90,30 @@ impl EECore {
 		}
 	}
 
+	/// Execute one cycle of the EE Core CPU.
+	///
+	/// This attempts to fetch and issue two instructions from memory.
 	pub fn cycle(&mut self, program: &[u8]) {
 		// Read and parse two instructions, put them into the pipeline.
-		let pc = self.pc_register as usize;
+		// FIXME: hack to avoid MMU during early BIOS testing.
 
-		let i1 = LittleEndian::read_u32(&program[pc..pc+OPCODE_LENGTH_BYTES]);
-		let i2 = LittleEndian::read_u32(&program[pc+OPCODE_LENGTH_BYTES..pc+OPCODE_LENGTH_BYTES+OPCODE_LENGTH_BYTES]);
+		// FIXME: bound to 32-bit space.
+		let pc = (self.pc_register as usize).wrapping_sub(KSEG1_START);
+		trace!("{} <- {}",pc, self.pc_register);
+		let next = (self.pc_register.wrapping_add((OPCODE_LENGTH_BYTES as u32)) as usize).wrapping_sub(KSEG1_START);
+
+		// FIXME: these checks will be slow/unnecessary once I move to real memory/mmu.
+		// This is some ugly dupe, in the mean time.
+		let i1 = if pc + OPCODE_LENGTH_BYTES <= program.len() {
+			LittleEndian::read_u32(&program[pc..pc+OPCODE_LENGTH_BYTES])
+		} else {
+			NOP
+		};
+		let i2 = if next + OPCODE_LENGTH_BYTES <= program.len() {
+			LittleEndian::read_u32(&program[next..next+OPCODE_LENGTH_BYTES])
+		} else {
+			NOP
+		};
 
 		// IDEA: Skip I, Q, lead in with R. Pass these off to the correct physical pipelines
 		let p1 = ops::process_instruction(i1);
@@ -94,12 +122,14 @@ impl EECore {
 		let p2 = ops::process_instruction(i2);
 		self.execute(p2);
 		// println!("{:?}, {:?}", p2.data, p2.delay);
-
-		self.pc_register += (OPCODE_LENGTH_BYTES as u32) << 1;
 	}
 
 	pub fn execute(&mut self, instruction: OpCode) {
+		if let Some(op) = self.branch_delay_slot.take() {
+			self.execute(op);
+		}
 		(instruction.action)(self, &instruction);
+		self.pc_register = self.pc_register.wrapping_add(OPCODE_LENGTH_BYTES as u32);
 	}
 }
 
