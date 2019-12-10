@@ -6,48 +6,72 @@ use crate::core::{
 use super::instruction::Instruction;
 
 const PC_HO_BITS: u32 = 0b1111 << 28;
-const PC_ALIGNED_BITS: u64 = 0b11;
+const PC_ALIGNED_BITS: u32 = 0b11;
 
-pub fn j(cpu: &mut EECore, data: &OpCode) {
-	let mut new_op = *data;
-	new_op.action = &(inner_j as EEAction);
-
-	let _ = cpu.branch_delay_slot.replace(new_op);
+pub fn bne(cpu: &mut EECore, data: &OpCode) {
+	// Compute condition here.
+	let cond = cpu.read_register(data.ri_get_source()) != cpu.read_register(data.ri_get_target());
+	cpu.branch(data, &(inner_bne as BranchAction), cond as u32);
 }
 
-fn inner_j(cpu: &mut EECore, data: &OpCode) {
+fn inner_bne(cpu: &mut EECore, data: &BranchOpCode) -> BranchResult {
+	// Add immediate to current PC value.
+	if data.temp != 0 {
+		cpu.pc_register = cpu.pc_register.wrapping_add((data.i_get_immediate() as u32) << 2);
+		BranchResult::BRANCHED
+	} else {
+		BranchResult::empty()
+	}
+}
+
+pub fn j(cpu: &mut EECore, data: &OpCode) {
+	cpu.branch(data, &(inner_j as BranchAction), 0);
+}
+
+fn inner_j(cpu: &mut EECore, data: &BranchOpCode) -> BranchResult {
 	cpu.pc_register = (cpu.pc_register & PC_HO_BITS) | (data.j_get_jump() << 2);
+
+	BranchResult::BRANCHED
 }
 
 pub fn jal(cpu: &mut EECore, data: &OpCode) {
 	// Store PC after BD-slot in R31.
 	cpu.write_register(31, (cpu.pc_register + (OPCODE_LENGTH_BYTES * 2) as u32) as u64);
 
-	let mut new_op = *data;
-	new_op.action = &(inner_j as EEAction);
-
-	let _ = cpu.branch_delay_slot.replace(new_op);
+	cpu.branch(data, &(inner_j as BranchAction), 0);
 }
 
 pub fn jalr(cpu: &mut EECore, data: &OpCode) {
-	unimplemented!()
-}
+	let dest = cpu.read_register(data.ri_get_source()) as u32;
 
-pub fn jr(cpu: &mut EECore, data: &OpCode) {
-	let dest = cpu.read_register(data.ri_get_source());
+	cpu.write_register(
+		data.r_get_destination(),
+		(cpu.pc_register + (OPCODE_LENGTH_BYTES * 2) as u32) as u64,
+	);
 
 	if dest & PC_ALIGNED_BITS == 0 {
-		let mut new_op = *data;
-		new_op.action = &(inner_jr as EEAction);
-
-		let _ = cpu.branch_delay_slot.replace(new_op);
+		cpu.branch(data, &(inner_jr as BranchAction), dest);
 	} else {
 		// FIXME: fire Address Error exception.
+		cpu.fire_exception();
 	}
 }
 
-fn inner_jr(cpu: &mut EECore, data: &OpCode) {
-	cpu.pc_register = cpu.read_register(data.ri_get_source()) as u32;
+pub fn jr(cpu: &mut EECore, data: &OpCode) {
+	let dest = cpu.read_register(data.ri_get_source()) as u32;
+
+	if dest & PC_ALIGNED_BITS == 0 {
+		cpu.branch(data, &(inner_jr as BranchAction), dest);
+	} else {
+		// FIXME: fire Address Error exception.
+		cpu.fire_exception();
+	}
+}
+
+fn inner_jr(cpu: &mut EECore, data: &BranchOpCode) -> BranchResult {
+	cpu.pc_register = data.temp;
+
+	BranchResult::BRANCHED
 }
 
 #[cfg(test)]
@@ -86,6 +110,35 @@ mod tests {
 	}
 
 	#[test]
+	fn basic_bne() {
+		// Execute a jump instruction and a NOP. PC changes by relative amount.
+		// PC only changes if target registers do not match.
+		let jump_offset: u16 = 0x12_34;
+		let jump_target = (KSEG1_START as u32) + 4 + ((jump_offset as u32) << 2);
+
+		let program = vec![
+			ops::build_op_immediate(MipsOpcode::BNE, 1, 2, jump_offset),
+			NOP,
+		];
+		let mut program_bytes = vec![0u8; 4 * program.len()];
+		LittleEndian::write_u32_into(&program[..], &mut program_bytes[..]);
+
+		let mut staying_ee = EECore::new();
+		let mut jumping_ee = EECore::new();
+
+		staying_ee.write_register(1, 1234);
+		staying_ee.write_register(2, 1234);
+		staying_ee.cycle(&program_bytes[..]);
+
+		jumping_ee.write_register(1, 1234);
+		jumping_ee.write_register(2, 1235);
+		jumping_ee.cycle(&program_bytes[..]);
+
+		assert_eq!(staying_ee.pc_register, (KSEG1_START as u32) + 8);
+		assert_eq!(jumping_ee.pc_register, jump_target);
+	}
+
+	#[test]
 	fn basic_jump() {
 		// Execute a jump instruction and a NOP. PC changes to new target.
 		// NOTE: EE starts in uncached BIOS region (KSEG1).
@@ -104,6 +157,82 @@ mod tests {
 		test_ee.cycle(&program_bytes[..]);
 
 		assert_eq!(test_ee.pc_register, jump_target);
+	}
+
+	#[test]
+	fn basic_jr() {
+		// Execute a jump instruction and a NOP. PC changes to new target.
+		let jump_dest: u32 = 0x1234_5678;
+
+		let program = vec![
+			ops::build_op_register(MipsFunction::JR, 1, 0, 0, 0),
+			NOP,
+		];
+		let mut program_bytes = vec![0u8; 4 * program.len()];
+		LittleEndian::write_u32_into(&program[..], &mut program_bytes[..]);
+
+		let mut test_ee = EECore::new();
+
+		test_ee.write_register(1, jump_dest as u64);
+
+		test_ee.cycle(&program_bytes[..]);
+
+		assert_eq!(test_ee.pc_register, jump_dest);
+	}
+
+	#[test]
+	fn basic_jalr() {
+		// Execute a jump instruction and a NOP. PC changes to new target.
+		// Old PC appears in arbitrary register.
+		let jump_dest: u32 = 0x1234_5678;
+
+		let program = vec![
+			ops::build_op_register(MipsFunction::JaLR, 1, 0, 5, 0),
+			NOP,
+		];
+		let mut program_bytes = vec![0u8; 4 * program.len()];
+		LittleEndian::write_u32_into(&program[..], &mut program_bytes[..]);
+
+		let mut test_ee = EECore::new();
+
+		test_ee.write_register(1, jump_dest as u64);
+
+		test_ee.cycle(&program_bytes[..]);
+
+		assert_eq!(test_ee.pc_register, jump_dest);
+		assert_eq!(test_ee.read_register(5) as u32, (KSEG1_START as u32) + 8);
+	}
+
+	#[test]
+	fn basic_jal() {
+		// Execute a jump instruction and a NOP. PC changes to new target.
+		// Old PC appears in register 31.
+		let jump_offset: u32 = 0x12_34_56;
+		let jump_target = (KSEG1_START as u32) | (jump_offset << 2);
+
+		let program = vec![
+			ops::build_op_jump(MipsOpcode::JaL, jump_offset),
+			NOP,
+		];
+		let mut program_bytes = vec![0u8; 4 * program.len()];
+		LittleEndian::write_u32_into(&program[..], &mut program_bytes[..]);
+
+		let mut test_ee = EECore::new();
+
+		test_ee.cycle(&program_bytes[..]);
+
+		assert_eq!(test_ee.pc_register, jump_target);
+		assert_eq!(test_ee.read_register(31) as u32, (KSEG1_START as u32) + 8);
+	}
+
+	#[test]
+	fn jalr_unaligned_address_exception() {
+		unimplemented!()
+	}
+
+	#[test]
+	fn jr_unaligned_address_exception() {
+		unimplemented!()
 	}
 
 	#[test]

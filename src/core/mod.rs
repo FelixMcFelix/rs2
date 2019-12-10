@@ -20,11 +20,18 @@ pub struct EECore {
 	pub sa_register: u32,
 	pub pc_register: u32,
 
+	/// Hack.
+	///
+	/// FIXME: exception logic should depend on COP0 state.
+	pub exception: bool,
+
 	/// Code held by a Branch-type instruction.
 	///
 	/// This should be executed and cleared *before* any instruction
 	/// passed via [`EECore::execute`](#method.execute).
-	pub branch_delay_slot: Option<OpCode>,
+	/// This is not the instruction *in* the branch delay slot,
+	/// but instead indicates that the next call to [`execute`](#method.execute) is such.
+	pub branch_delay_slot_active: Option<BranchOpCode>,
 }
 
 impl EECore {
@@ -37,7 +44,9 @@ impl EECore {
 			sa_register: 0,
 			pc_register: KSEG1_START as u32,
 
-			branch_delay_slot: None,
+			exception: false,
+
+			branch_delay_slot_active: None,
 		}
 	}
 
@@ -98,9 +107,9 @@ impl EECore {
 		// FIXME: hack to avoid MMU during early BIOS testing.
 
 		// FIXME: bound to 32-bit space.
-		let pc = (self.pc_register as usize).wrapping_sub(KSEG1_START);
+		let pc: usize = self.pc_register.wrapping_sub(KSEG1_START as u32) as usize;
 		trace!("{} <- {}",pc, self.pc_register);
-		let next = (self.pc_register.wrapping_add((OPCODE_LENGTH_BYTES as u32)) as usize).wrapping_sub(KSEG1_START);
+		let next = self.pc_register.wrapping_add(OPCODE_LENGTH_BYTES as u32).wrapping_sub(KSEG1_START as u32) as usize;
 
 		// FIXME: these checks will be slow/unnecessary once I move to real memory/mmu.
 		// This is some ugly dupe, in the mean time.
@@ -125,11 +134,38 @@ impl EECore {
 	}
 
 	pub fn execute(&mut self, instruction: OpCode) {
-		if let Some(op) = self.branch_delay_slot.take() {
-			self.execute(op);
+		let branch_result = if let Some(op) = self.branch_delay_slot_active.take() {
+			(op.action)(self, &op)
+		} else {
+			BranchResult::empty()
+		};
+
+		if !branch_result.contains(BranchResult::NULLIFIED) {
+			(instruction.action)(self, &instruction);
 		}
-		(instruction.action)(self, &instruction);
-		self.pc_register = self.pc_register.wrapping_add(OPCODE_LENGTH_BYTES as u32);
+		if !branch_result.contains(BranchResult::BRANCHED){
+			self.pc_register = self.pc_register.wrapping_add(OPCODE_LENGTH_BYTES as u32);
+		}
+	}
+
+	pub fn fire_exception(&mut self) {
+		// Codes are on user's manual v6.0, p75/180.
+		// FIXME: manipulate A LOT of COP0 state.
+		self.exception = true;
+	}
+
+	pub fn in_exception(&mut self) -> bool {
+		// FIXME: manipulate A LOT of COP0 state.
+		self.exception
+	}
+
+	#[inline]
+	pub fn branch(&mut self, op: &OpCode, new_action: &'static BranchAction, temp: u32) {
+		let _ = self.branch_delay_slot_active.replace(BranchOpCode::new(
+			op,
+			new_action,
+			temp,
+		));
 	}
 }
 

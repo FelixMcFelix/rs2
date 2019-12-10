@@ -13,16 +13,18 @@ use syn::{
 /// parts of associated machinery.
 ///
 /// Defining an instruction as `(NAME, fn, op, delay)`,
-/// this takes 3 parameters, each a list of instructions:
-/// * R instructions
-/// * I instructions
-/// * J instructions
+/// this takes 2 parameters:
+/// * Switched instructions, a list of tuples (OpCode, name, decoder, list of instructions)
+/// * Generic instructions, a list of instructions.
 ///
 /// For instance, the following will register one R-type function, ADD:
 /// ```rust
 /// rs2_macro::ops!([
-/// 	[(ADD, add, 0b100000, 1)],
-/// 	[],
+/// 	[
+/// 		(MipsOpcode::Special, "R", MipsFunction::decode,
+/// 			[(ADD, add, 0b100000, 1)],
+/// 		),
+/// 	]
 /// 	[],
 /// ]);
 /// ```
@@ -66,20 +68,8 @@ pub fn ops(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 			let opcode = crate::core::ops::constants::MipsOpcode::from_u8(raw_opcode);
 
 			match opcode {
-				// R instructions
-				Some(crate::core::ops::constants::MipsOpcode::Special) => {
-					let raw_func = instruction.r_get_function();
-					let func = crate::core::ops::constants::MipsFunction::from_u8(raw_func);
-
-					match func {
-						#r_type_matches_tokens
-						_ => debug!(
-							"Unknown R-type instruction {:06b}: data {:020b}.",
-							raw_func,
-							(instruction << 6) >> 12,
-						),
-					}
-				},
+				// R/switched instructions
+				#r_type_matches_tokens
 
 				// I, J instructions
 				#ij_type_matches_tokens
@@ -100,6 +90,48 @@ pub fn ops(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
 fn r_type_matches(instructions: &ExprArray) -> proc_macro2::TokenStream {
 	let mut match_parts = vec![];
+
+	for family in instructions.elems.clone().iter_mut() {
+		if let Expr::Tuple(ref mut family_data) = family {
+			let family_elems = &mut family_data.elems;
+
+			assert!(family_elems.len() == 4);
+			let funcs = family_elems.pop().unwrap().into_value();
+			let op_codec = family_elems.pop().unwrap().into_value();
+			let op_name = family_elems.pop().unwrap().into_value();
+			let op_code = family_elems.pop().unwrap().into_value();
+
+			let r_type_matches_tokens = if let Expr::Array(instruction_list) = funcs {
+				Some(individual_r_type_matches(&instruction_list))
+			} else {
+				None
+			};
+
+			match_parts.push(quote!{
+				Some(#op_code) => {
+					let raw_func = instruction.r_get_function();
+					let func = crate::core::ops::constants::MipsFunction::from_u8(raw_func);
+
+					match #op_codec(instruction) {
+						#r_type_matches_tokens
+						_ => debug!(
+							"Unknown {}-type instruction {:06b}: data {:020b}.",
+							#op_name,
+							raw_func,
+							(instruction << 6) >> 12,
+						),
+					}
+				},
+			});
+		}
+	}
+
+	quote!{#(#match_parts)*}
+}
+
+fn individual_r_type_matches(instructions: &ExprArray) -> proc_macro2::TokenStream {
+	let mut match_parts = vec![];
+
 	for instruction in instructions.elems.clone().iter_mut() {
 		if let Expr::Tuple(ref mut instruction_data) = instruction {
 			let elems = &mut instruction_data.elems;

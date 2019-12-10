@@ -7,7 +7,10 @@ use byteorder::{
 use std::{
 	convert::TryInto,
 	fs::File,
-	io::Read,
+	io::{
+		self,
+		Read,
+	},
 };
 
 pub mod core;
@@ -28,7 +31,11 @@ fn main() {
 		};
 
 		if f.read_to_end(&mut prog_buf).is_ok() {
+			let stdin = io::stdin();
+			let mut s = String::new();
+			println!("Stepped execution: press enter to cycle.");
 			loop {
+				let _ = stdin.read_line(&mut s);
 				ee_core.cycle(&prog_buf);
 			}
 		}

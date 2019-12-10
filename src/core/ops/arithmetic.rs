@@ -5,36 +5,55 @@ use crate::core::{
 use super::instruction::Instruction;
 
 pub fn add(cpu: &mut EECore, data: &OpCode) {
-	// FIXME: Need to throw an exception here if 32-bit overflow.
-	// FIXME: Need to sign-extend from 32-bit.
-	cpu.write_register(
-		data.r_get_destination(),
-		cpu.read_register(data.ri_get_source()) + cpu.read_register(data.ri_get_target()),
-	);
+	// NOTE: do this work in signed space of proper size,
+	// then convert to unsigned at end.
+	// This achieves sign extension as required.
+	let lhs = cpu.read_register(data.ri_get_source()) as i32;
+	let rhs = cpu.read_register(data.ri_get_target()) as i32;
+
+	if let Some(sum) = lhs.checked_add(rhs) {
+		cpu.write_register(
+			data.r_get_destination(),
+			sum as u64,
+		);	
+	} else {
+		// FIXME: Type = Overflow
+		cpu.fire_exception();
+	}
 }
 
 pub fn addi(cpu: &mut EECore, data: &OpCode) {
-	// FIXME: Need to throw an exception here if 32-bit overflow.
-	// FIXME: Need to sign-extend from 32-bit.
-	cpu.write_register(
-		data.ri_get_target(),
-		cpu.read_register(data.ri_get_source()) + u64::from(data.i_get_immediate()),
-	);
+	let lhs = cpu.read_register(data.ri_get_source()) as i32;
+	let rhs = (data.i_get_immediate() as i16) as i32;
+
+	if let Some(sum) = lhs.checked_add(rhs) {
+		cpu.write_register(
+			data.ri_get_target(),
+			sum as u64,
+		);	
+	} else {
+		// FIXME: Type = Overflow
+		cpu.fire_exception();
+	}
 }
 
 pub fn addiu(cpu: &mut EECore, data: &OpCode) {
-	// FIXME: Need to sign-extend from 32-bit.
+	let lhs = cpu.read_register(data.ri_get_source()) as i32;
+	let rhs = (data.i_get_immediate() as i16) as i32;
+
 	cpu.write_register(
 		data.ri_get_target(),
-		cpu.read_register(data.ri_get_source()) + u64::from(data.i_get_immediate()),
+		lhs.wrapping_add(rhs) as u64,
 	);
 }
 
 pub fn addu(cpu: &mut EECore, data: &OpCode) {
-	// FIXME: Need to sign-extend from 32-bit.
+	let lhs = cpu.read_register(data.ri_get_source()) as i32;
+	let rhs = cpu.read_register(data.ri_get_target()) as i32;
+
 	cpu.write_register(
 		data.r_get_destination(),
-		cpu.read_register(data.ri_get_source()) + cpu.read_register(data.ri_get_target()),
+		lhs.wrapping_add(rhs) as u64,
 	);
 }
 
@@ -42,6 +61,22 @@ pub fn and(cpu: &mut EECore, data: &OpCode) {
 	cpu.write_register(
 		data.r_get_destination(),
 		cpu.read_register(data.ri_get_source()) & cpu.read_register(data.ri_get_target()),
+	);
+}
+
+pub fn sll(cpu: &mut EECore, data: &OpCode) {
+	cpu.write_register(
+		data.r_get_destination(),
+		cpu.read_register(data.ri_get_target()) << data.r_get_shift_amount(),
+	);
+}
+
+pub fn slti(cpu: &mut EECore, data: &OpCode) {
+	let lhs = cpu.read_register(data.ri_get_source()) as i64;
+	let rhs = data.i_get_immediate() as i64;
+	cpu.write_register(
+		data.ri_get_target(),
+		if lhs < rhs { 1 } else { 0 },
 	);
 }
 
@@ -71,10 +106,39 @@ mod tests {
 	}
 
 	#[test]
+	fn add_uses_sign() {
+		// Place a value into registers 1 and 2, store their sum in register 3.
+		let in_1 = 36;
+		let in_2 = -19;
+
+		let mut test_ee = EECore::new();
+		test_ee.write_register(1, in_1);
+		test_ee.write_register(2, in_2 as u64);
+
+		let instruction = ops::build_op_register(MipsFunction::Add, 1, 2, 3, 0);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert_eq!(test_ee.read_register(3) as i64, (in_1 as i64) + in_2);
+	}
+
+	#[test]
 	fn add_overflow_exception() {
 		// 32-bit signed overflow should trap.
 		// Destination register should be unaffected.
-		unimplemented!();
+		let in_1 = std::i32::MAX;
+		let in_2 = 1;
+
+		let mut test_ee = EECore::new();
+		test_ee.write_register(1, in_1 as u64);
+		test_ee.write_register(2, in_2);
+
+		let instruction = ops::build_op_register(MipsFunction::Add, 1, 2, 3, 0);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert!(test_ee.in_exception());
+		assert_eq!(test_ee.read_register(3) as i64, 0);
 	}
 
 	#[test]
@@ -94,10 +158,37 @@ mod tests {
 	}
 
 	#[test]
+	fn addi_uses_sign() {
+		// Place a value into register 1, store their sum in register 2.
+		let in_1 = 36;
+		let in_2 = -19;
+
+		let mut test_ee = EECore::new();
+		test_ee.write_register(1, in_1);
+
+		let instruction = ops::build_op_immediate(MipsOpcode::AddI, 1, 2, in_2 as u16);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert_eq!(test_ee.read_register(2) as i32, (in_1 as i32) + (in_2 as i32));
+	}
+
+	#[test]
 	fn addi_overflow_exception() {
 		// 32-bit signed overflow should trap.
 		// Destination register should be unaffected.
-		unimplemented!();
+		let in_1 = std::i32::MAX;
+		let in_2 = 1;
+
+		let mut test_ee = EECore::new();
+		test_ee.write_register(1, in_1 as u64);
+
+		let instruction = ops::build_op_immediate(MipsOpcode::AddI, 1, 2, in_2 as u16);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert!(test_ee.in_exception());
+		assert_eq!(test_ee.read_register(3) as i64, 0);
 	}
 
 	#[test]
@@ -120,7 +211,20 @@ mod tests {
 	#[test]
 	fn addu_no_overflow_exception() {
 		// Signed overflow SHOULD be allowed.
-		unimplemented!();
+		// The value is the result of performing the addition.
+		let in_1 = std::i32::MAX;
+		let in_2 = 1;
+
+		let mut test_ee = EECore::new();
+		test_ee.write_register(1, in_1 as u64);
+		test_ee.write_register(2, in_2);
+
+		let instruction = ops::build_op_register(MipsFunction::AddU, 1, 2, 3, 0);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert!(!test_ee.in_exception());
+		assert_eq!(test_ee.read_register(3) as i64, std::i32::MIN as i64);
 	}
 
 	#[test]
@@ -136,13 +240,24 @@ mod tests {
 
 		test_ee.execute(ops::process_instruction(instruction));
 
-		assert_eq!(test_ee.read_register(2), in_1 + u64::from(in_2));
+		assert_eq!(test_ee.read_register(2), ((in_1 as i32) + (in_2 as i16) as i32) as u64);
 	}
 
 	#[test]
 	fn addiu_no_overflow_exception() {
 		// Signed overflow SHOULD be allowed.
-		unimplemented!();
+		let in_1 = std::i32::MAX;
+		let in_2 = 1;
+
+		let mut test_ee = EECore::new();
+		test_ee.write_register(1, in_1 as u64);
+
+		let instruction = ops::build_op_immediate(MipsOpcode::AddIU, 1, 2, in_2);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert!(!test_ee.in_exception());
+		assert_eq!(test_ee.read_register(2) as i64, std::i32::MIN as i64);
 	}
 
 	#[test]
@@ -160,5 +275,47 @@ mod tests {
 		test_ee.execute(ops::process_instruction(instruction));
 
 		assert_eq!(test_ee.read_register(3), in_1 & in_2);
+	}
+
+	#[test]
+	fn basic_slti() {
+		// Place a value into register 1, store their sum in register 2.
+		let in_1 = 23467;
+		let in_2 = 34578;
+
+		let mut test_ee = EECore::new();
+		test_ee.write_register(1, in_1);
+
+		// Test positive case.
+		let instruction = ops::build_op_immediate(MipsOpcode::SLTI, 1, 2, in_2);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert_eq!(test_ee.read_register(2), 1);
+
+		// Test negative case.
+		test_ee.write_register(1, in_2 as u64);
+
+		let instruction = ops::build_op_immediate(MipsOpcode::SLTI, 1, 2, in_2);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert_eq!(test_ee.read_register(2), 0);
+	}
+
+	#[test]
+	fn slti_sign_used() {
+		// Place a value into register 1, store their sum in register 2.
+		let in_1 = -1;
+		let in_2 = 0;
+
+		let mut test_ee = EECore::new();
+		test_ee.write_register(1, in_1 as u64);
+
+		let instruction = ops::build_op_immediate(MipsOpcode::SLTI, 1, 2, in_2);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert_eq!(test_ee.read_register(2), 1);
 	}
 }

@@ -13,22 +13,34 @@ use instruction::Instruction;
 
 rs2_macro::ops!([
 	[
-		(ADD, arithmetic::add, MipsFunction::Add, 1),
-		(ADDU, arithmetic::addu, MipsFunction::AddU, 1),
-		(AND, arithmetic::and, MipsFunction::And, 1),
-		(JALR, branch::jalr, MipsFunction::JaLR, 1),
-		(JR, branch::jr, MipsFunction::JR, 1),
+		(MipsOpcode::Special, "R", MipsFunction::decode, [
+			(ADD, arithmetic::add, MipsFunction::Add, 1),
+			(ADDU, arithmetic::addu, MipsFunction::AddU, 1),
+			(AND, arithmetic::and, MipsFunction::And, 1),
+			(JALR, branch::jalr, MipsFunction::JaLR, 1),
+			(JR, branch::jr, MipsFunction::JR, 1),
+			(SLL, arithmetic::sll, MipsFunction::SLL, 1),
+		]),
+		(MipsOpcode::Cop0, "COP0", Cop0Function::decode, [
+			// N/A
+		]),
+		(MipsOpcode::Cop1, "COP1", Cop1Function::decode, [
+			// N/A
+		]),
 	],
 	[
 		(ADDI, arithmetic::addi, MipsOpcode::AddI, 1),
 		(ADDIU, arithmetic::addiu, MipsOpcode::AddIU, 1),
+		(BNE, branch::bne, MipsOpcode::BNE, 1),
 		(J, branch::j, MipsOpcode::J, 1),
 		(JAL, branch::jal, MipsOpcode::JaL, 1),
+		(SLTI, arithmetic::slti, MipsOpcode::SLTI, 1),
 	],
 ]);
 
 pub fn nop(_cpu: &mut EECore, _data: &OpCode) {
 	// No Op.
+	trace!("NOP FIRED");
 }
 
 #[inline]
