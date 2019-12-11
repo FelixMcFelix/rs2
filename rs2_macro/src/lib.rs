@@ -145,8 +145,8 @@ fn individual_r_type_matches(instructions: &ExprArray) -> proc_macro2::TokenStre
 			match_parts.push(quote!{
 				Some(#func_code) => {
 					let lname = stringify!(#op_name);
-					trace!("{}; {:?}", lname, (instruction << 6) >> 12);
-					out.action = &(#func_name as crate::core::pipeline::EEAction);
+					trace!("{}; {:020b} {:06b}", lname, (instruction << 6) >> 12, instruction & 0b11_1111);
+					out.action = #func_name as crate::core::pipeline::EEAction;
 					out.delay = #func_delay;
 				},
 			});
@@ -171,8 +171,8 @@ fn ij_type_matches(instructions: &ExprArray) -> proc_macro2::TokenStream {
 			match_parts.push(quote!{
 				Some(#func_code) => {
 					let lname = stringify!(#op_name);
-					trace!("{}; {:?}", lname, (instruction << 6) >> 6);
-					out.action = &(#func_name as crate::core::pipeline::EEAction);
+					trace!("{}; {:026b}", lname, (instruction << 6) >> 6);
+					out.action = #func_name as crate::core::pipeline::EEAction;
 					out.delay = #func_delay;
 				},
 			});

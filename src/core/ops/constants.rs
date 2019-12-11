@@ -15,7 +15,9 @@ pub enum MipsOpcode {
 	BNE     = 0b00_0101,
 	J       = 0b00_0010,
 	JaL     = 0b00_0011,
-	SLTI    = 0b00_1010, 
+	LUI     = 0b00_1111,
+	OrI     = 0b00_1101,
+	SLTI    = 0b00_1010,
 }
 }
 
@@ -32,6 +34,7 @@ pub enum MipsFunction {
 }
 
 impl MipsFunction {
+	#[inline(always)]
 	pub fn decode(instruction: u32) -> Option<Self> {
 		let raw_func = instruction.r_get_function();
 		Self::from_u8(raw_func)
@@ -40,11 +43,50 @@ impl MipsFunction {
 
 #[derive(Debug, PartialEq)]
 pub enum Cop0Function {
+	MFBPC,
+	MFC0,
 }
 
+const MF0: u8 = 0b0_0000;
+const C0:  u8 = 0b1_0000;
+const BC0: u8 = 0b0_1000;
+const MT0: u8 = 0b0_0100;
+
+const LAST_11: u32 = 0b0111_1111_1111;
+
 impl Cop0Function {
+	#[inline(always)]
 	pub fn decode(instruction: u32) -> Option<Self> {
-		None
+		let family = instruction.ri_get_source();
+		match family {
+			MF0 => {
+				trace!("MF0");
+				match instruction & LAST_11 {
+					0 => if instruction.r_get_destination() == 0b1_1000 {
+						Some(Cop0Function::MFBPC)
+					} else {
+						Some(Cop0Function::MFC0)
+					},
+					_ => None,
+				}
+			},
+			C0 => {
+				trace!("C0");
+				None
+			},
+			BC0 => {
+				trace!("BC0");
+				None
+			},
+			MT0 => {
+				trace!("MT0");
+				None
+			},
+			_ => {
+				unreachable!();
+			}
+		}
+
 	}
 }
 
@@ -53,6 +95,7 @@ pub enum Cop1Function {
 }
 
 impl Cop1Function {
+	#[inline(always)]
 	pub fn decode(instruction: u32) -> Option<Self> {
 		None
 	}

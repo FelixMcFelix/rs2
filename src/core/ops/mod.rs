@@ -1,7 +1,9 @@
 mod arithmetic;
 mod branch;
 pub mod constants;
+mod cop0;
 pub mod instruction;
+mod load;
 
 pub use constants::*;
 use crate::core::{
@@ -22,7 +24,8 @@ rs2_macro::ops!([
 			(SLL, arithmetic::sll, MipsFunction::SLL, 1),
 		]),
 		(MipsOpcode::Cop0, "COP0", Cop0Function::decode, [
-			// N/A
+			(MFBPC, cop0::mfc0, Cop0Function::MFBPC, 1),
+			(MFC0, cop0::mfc0, Cop0Function::MFC0, 1),
 		]),
 		(MipsOpcode::Cop1, "COP1", Cop1Function::decode, [
 			// N/A
@@ -34,6 +37,8 @@ rs2_macro::ops!([
 		(BNE, branch::bne, MipsOpcode::BNE, 1),
 		(J, branch::j, MipsOpcode::J, 1),
 		(JAL, branch::jal, MipsOpcode::JaL, 1),
+		(LUI, load::lui, MipsOpcode::LUI, 1),
+		(ORI, arithmetic::ori, MipsOpcode::OrI, 1),
 		(SLTI, arithmetic::slti, MipsOpcode::SLTI, 1),
 	],
 ]);

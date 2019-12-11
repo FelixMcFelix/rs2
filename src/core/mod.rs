@@ -1,5 +1,5 @@
-mod constants;
-mod ops;
+pub mod constants;
+pub mod ops;
 pub mod pipeline;
 #[cfg(test)]
 mod tests;
@@ -15,6 +15,7 @@ use super::memory::constants::*;
 
 pub struct EECore {
 	pub register_file: [u8; REGISTER_FILE_SIZE],
+	pub cop0_register_file: [u8; COP0_REGISTER_FILE_SIZE],
 	pub hi: [u8; REGISTER_WIDTH_BYTES],
 	pub lo: [u8; REGISTER_WIDTH_BYTES],
 	pub sa_register: u32,
@@ -39,10 +40,11 @@ impl EECore {
 	pub fn new() -> Self {
 		Self {
 			register_file: [0u8; REGISTER_FILE_SIZE],
+			cop0_register_file: [0u8; COP0_REGISTER_FILE_SIZE],
 			hi: [0u8; REGISTER_WIDTH_BYTES],
 			lo: [0u8; REGISTER_WIDTH_BYTES],
 			sa_register: 0,
-			pc_register: KSEG1_START as u32,
+			pc_register: BIOS_START as u32,
 
 			exception: false,
 
@@ -99,6 +101,28 @@ impl EECore {
 		}
 	}
 
+	/// Reads a value from the specified register of COP0.
+	pub fn read_cop0(&self, index: u8) -> u32 {
+		trace!("Reading from COP0 register {}", index);
+		let floor = ((index as usize) * COP0_REGISTER_WIDTH_BYTES);
+		LittleEndian::read_u32(&self.cop0_register_file[floor..])
+	}
+
+	/// Write a value to the specified register of COP0.s
+	pub fn write_cop0(&mut self, index: u8, value: u32) {
+		trace!("Writing value {} to COP0 register {}", value, index);
+		let floor = ((index as usize) * COP0_REGISTER_WIDTH_BYTES);
+		LittleEndian::write_u32(&mut self.cop0_register_file[floor..], value);
+	}
+
+	pub fn init_as_ee(&mut self) {
+		self.write_cop0(15, EE_PRID);
+	}
+
+	pub fn init_as_iop(&mut self) {
+		
+	}
+
 	/// Execute one cycle of the EE Core CPU.
 	///
 	/// This attempts to fetch and issue two instructions from memory.
@@ -107,9 +131,10 @@ impl EECore {
 		// FIXME: hack to avoid MMU during early BIOS testing.
 
 		// FIXME: bound to 32-bit space.
-		let pc: usize = self.pc_register.wrapping_sub(KSEG1_START as u32) as usize;
+		let pc: usize = self.pc_register.wrapping_sub(BIOS_START as u32) as usize;
 		trace!("{} <- {}",pc, self.pc_register);
-		let next = self.pc_register.wrapping_add(OPCODE_LENGTH_BYTES as u32).wrapping_sub(KSEG1_START as u32) as usize;
+		trace!("{:032b} <- {:032b}",pc, self.pc_register);
+		let next = self.pc_register.wrapping_add(OPCODE_LENGTH_BYTES as u32).wrapping_sub(BIOS_START as u32) as usize;
 
 		// FIXME: these checks will be slow/unnecessary once I move to real memory/mmu.
 		// This is some ugly dupe, in the mean time.
@@ -160,7 +185,7 @@ impl EECore {
 	}
 
 	#[inline]
-	pub fn branch(&mut self, op: &OpCode, new_action: &'static BranchAction, temp: u32) {
+	pub fn branch(&mut self, op: &OpCode, new_action: BranchAction, temp: u32) {
 		let _ = self.branch_delay_slot_active.replace(BranchOpCode::new(
 			op,
 			new_action,
@@ -171,6 +196,9 @@ impl EECore {
 
 impl Default for EECore {
 	fn default() -> Self {
-		Self::new()
+		let mut out = Self::new();
+		out.init_as_ee();
+
+		out
 	}
 }

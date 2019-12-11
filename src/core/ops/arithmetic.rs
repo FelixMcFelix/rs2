@@ -64,6 +64,15 @@ pub fn and(cpu: &mut EECore, data: &OpCode) {
 	);
 }
 
+pub fn ori(cpu: &mut EECore, data: &OpCode) {
+	// rt <- rs | ext(imm)
+	let extd_imm = (data.i_get_immediate() as i16) as u64;
+	cpu.write_register(
+		data.ri_get_target(),
+		cpu.read_register(data.ri_get_source()) | extd_imm,
+	);
+}
+
 pub fn sll(cpu: &mut EECore, data: &OpCode) {
 	cpu.write_register(
 		data.r_get_destination(),
@@ -275,6 +284,24 @@ mod tests {
 		test_ee.execute(ops::process_instruction(instruction));
 
 		assert_eq!(test_ee.read_register(3), in_1 & in_2);
+	}
+
+	#[test]
+	fn basic_ori() {
+		// Need to ensure this works on full 64-bit width.
+		let in_1 = 0b1000_0000_0000_0000_0000_0000_0100_1111_0010_0000_0000_0010_0000_0000_1111_0001;
+		let in_2 = 0b1111_0000_0110_1000;
+
+		let extended_in_2 = (in_2 as i16) as u64;
+
+		let mut test_ee = EECore::new();
+		test_ee.write_register(1, in_1);
+
+		let instruction = ops::build_op_immediate(MipsOpcode::OrI, 1, 2, in_2);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert_eq!(test_ee.read_register(2), in_1 | extended_in_2 as u64);
 	}
 
 	#[test]

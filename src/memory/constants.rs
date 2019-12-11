@@ -27,6 +27,8 @@ pub const KSEG0_START: usize = 0x8000_0000;
 /// Kernel access only. Caching disabled.
 pub const KSEG1_START: usize = 0xA000_0000;
 
+pub const BIOS_START: usize = 0xBFC0_0000;
+
 /// Starting address of ksseg/sseg.
 ///
 /// Sseg is the region from `SSEG1_START` to `KSEG3_START - 1`,

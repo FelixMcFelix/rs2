@@ -35,7 +35,7 @@ pub struct BranchResult: u8 {
 #[derive(Clone, Copy)]
 pub struct OpCode {
 	pub raw: u32,
-	pub action: &'static EEAction,
+	pub action: EEAction,
 	pub delay: u8,
 }
 
@@ -43,7 +43,7 @@ impl Default for OpCode {
 	fn default() -> Self {
 		Self {
 			raw: 0,
-			action: &(ops::nop as EEAction),
+			action: ops::nop as EEAction,
 			delay: 0,
 		}
 	}
@@ -131,12 +131,12 @@ impl Instruction for OpCode {
 #[derive(Clone, Copy)]
 pub struct BranchOpCode {
 	pub raw: u32,
-	pub action: &'static BranchAction,
+	pub action: BranchAction,
 	pub temp: u32,
 }
 
 impl BranchOpCode {
-	pub fn new(basis: &OpCode, action: &'static BranchAction, temp: u32) -> Self {
+	pub fn new(basis: &OpCode, action: BranchAction, temp: u32) -> Self {
 		Self {
 			raw: basis.raw,
 			action,

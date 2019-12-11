@@ -21,7 +21,7 @@ use crate::core::*;
 fn main() {
 	env_logger::init();
 	
-	let mut ee_core = EECore::new();
+	let mut ee_core = EECore::default();
 
 	if let Ok(mut f) = File::open("bios/scph39001.bin") {
 		let mut prog_buf = if let Ok(metadata) = f.metadata() {

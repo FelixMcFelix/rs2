@@ -11,7 +11,7 @@ const PC_ALIGNED_BITS: u32 = 0b11;
 pub fn bne(cpu: &mut EECore, data: &OpCode) {
 	// Compute condition here.
 	let cond = cpu.read_register(data.ri_get_source()) != cpu.read_register(data.ri_get_target());
-	cpu.branch(data, &(inner_bne as BranchAction), cond as u32);
+	cpu.branch(data, inner_bne as BranchAction, cond as u32);
 }
 
 fn inner_bne(cpu: &mut EECore, data: &BranchOpCode) -> BranchResult {
@@ -25,7 +25,7 @@ fn inner_bne(cpu: &mut EECore, data: &BranchOpCode) -> BranchResult {
 }
 
 pub fn j(cpu: &mut EECore, data: &OpCode) {
-	cpu.branch(data, &(inner_j as BranchAction), 0);
+	cpu.branch(data, inner_j as BranchAction, 0);
 }
 
 fn inner_j(cpu: &mut EECore, data: &BranchOpCode) -> BranchResult {
@@ -38,7 +38,7 @@ pub fn jal(cpu: &mut EECore, data: &OpCode) {
 	// Store PC after BD-slot in R31.
 	cpu.write_register(31, (cpu.pc_register + (OPCODE_LENGTH_BYTES * 2) as u32) as u64);
 
-	cpu.branch(data, &(inner_j as BranchAction), 0);
+	cpu.branch(data, inner_j as BranchAction, 0);
 }
 
 pub fn jalr(cpu: &mut EECore, data: &OpCode) {
@@ -50,7 +50,7 @@ pub fn jalr(cpu: &mut EECore, data: &OpCode) {
 	);
 
 	if dest & PC_ALIGNED_BITS == 0 {
-		cpu.branch(data, &(inner_jr as BranchAction), dest);
+		cpu.branch(data, inner_jr as BranchAction, dest);
 	} else {
 		// FIXME: fire Address Error exception.
 		cpu.fire_exception();
@@ -61,7 +61,7 @@ pub fn jr(cpu: &mut EECore, data: &OpCode) {
 	let dest = cpu.read_register(data.ri_get_source()) as u32;
 
 	if dest & PC_ALIGNED_BITS == 0 {
-		cpu.branch(data, &(inner_jr as BranchAction), dest);
+		cpu.branch(data, inner_jr as BranchAction, dest);
 	} else {
 		// FIXME: fire Address Error exception.
 		cpu.fire_exception();
@@ -93,7 +93,7 @@ mod tests {
 	fn jump_not_instant() {
 		// Execute a jump instruction with no followup. No change to PC.
 		let jump_offset = 0x12_34_56;
-		let jump_target = (KSEG1_START as u32) | (jump_offset << 2);
+		let jump_target = (BIOS_START as u32) | (jump_offset << 2);
 
 		let program = vec![
 			NOP,
@@ -114,7 +114,7 @@ mod tests {
 		// Execute a jump instruction and a NOP. PC changes by relative amount.
 		// PC only changes if target registers do not match.
 		let jump_offset: u16 = 0x12_34;
-		let jump_target = (KSEG1_START as u32) + 4 + ((jump_offset as u32) << 2);
+		let jump_target = (BIOS_START as u32) + 4 + ((jump_offset as u32) << 2);
 
 		let program = vec![
 			ops::build_op_immediate(MipsOpcode::BNE, 1, 2, jump_offset),
@@ -134,7 +134,7 @@ mod tests {
 		jumping_ee.write_register(2, 1235);
 		jumping_ee.cycle(&program_bytes[..]);
 
-		assert_eq!(staying_ee.pc_register, (KSEG1_START as u32) + 8);
+		assert_eq!(staying_ee.pc_register, (BIOS_START as u32) + 8);
 		assert_eq!(jumping_ee.pc_register, jump_target);
 	}
 
@@ -143,7 +143,7 @@ mod tests {
 		// Execute a jump instruction and a NOP. PC changes to new target.
 		// NOTE: EE starts in uncached BIOS region (KSEG1).
 		let jump_offset: u32 = 0x12_34_56;
-		let jump_target = (KSEG1_START as u32) | (jump_offset << 2);
+		let jump_target = (BIOS_START as u32) & PC_HO_BITS | (jump_offset << 2);
 
 		let program = vec![
 			ops::build_op_jump(MipsOpcode::J, jump_offset),
@@ -200,7 +200,7 @@ mod tests {
 		test_ee.cycle(&program_bytes[..]);
 
 		assert_eq!(test_ee.pc_register, jump_dest);
-		assert_eq!(test_ee.read_register(5) as u32, (KSEG1_START as u32) + 8);
+		assert_eq!(test_ee.read_register(5) as u32, (BIOS_START as u32) + 8);
 	}
 
 	#[test]
@@ -208,7 +208,7 @@ mod tests {
 		// Execute a jump instruction and a NOP. PC changes to new target.
 		// Old PC appears in register 31.
 		let jump_offset: u32 = 0x12_34_56;
-		let jump_target = (KSEG1_START as u32) | (jump_offset << 2);
+		let jump_target = (BIOS_START as u32) & PC_HO_BITS | (jump_offset << 2);
 
 		let program = vec![
 			ops::build_op_jump(MipsOpcode::JaL, jump_offset),
@@ -219,27 +219,48 @@ mod tests {
 
 		let mut test_ee = EECore::new();
 
+		let old_pc = test_ee.pc_register;
+
 		test_ee.cycle(&program_bytes[..]);
 
 		assert_eq!(test_ee.pc_register, jump_target);
-		assert_eq!(test_ee.read_register(31) as u32, (KSEG1_START as u32) + 8);
+		assert_eq!(test_ee.read_register(31) as u32, (BIOS_START as u32) + 8);
 	}
 
 	#[test]
 	fn jalr_unaligned_address_exception() {
 		unimplemented!()
+		// FIXME: left undone to remind myself that these exceptions should happen during address fetch...
+		// Unclear how this affects PC.
 	}
 
 	#[test]
 	fn jr_unaligned_address_exception() {
-		unimplemented!()
+		// Execute a jump instruction and a NOP. PC changes to new target.
+		let jump_dest: u32 = 0x1234_5679;
+
+		let program = vec![
+			ops::build_op_register(MipsFunction::JR, 1, 0, 0, 0),
+			NOP,
+		];
+		let mut program_bytes = vec![0u8; 4 * program.len()];
+		LittleEndian::write_u32_into(&program[..], &mut program_bytes[..]);
+
+		let mut test_ee = EECore::new();
+
+		test_ee.write_register(1, jump_dest as u64);
+
+		test_ee.cycle(&program_bytes[..]);
+
+		assert_ne!(test_ee.pc_register, jump_dest);
+		assert!(test_ee.in_exception());
 	}
 
 	#[test]
 	fn jump_delay_slot_fires() {
 		// Execute a jump instruction and an ADD. ADD should have taken effect.
 		let jump_offset: u32 = 0x12_34_56;
-		let jump_target = (KSEG1_START as u32) | (jump_offset << 2);
+		let jump_target = (BIOS_START as u32) & PC_HO_BITS | (jump_offset << 2);
 
 		let program = vec![
 			ops::build_op_jump(MipsOpcode::J, jump_offset),
