@@ -12,34 +12,35 @@ use crate::core::{
 };
 use enum_primitive::FromPrimitive;
 use instruction::Instruction;
+use timings::*;
 
 rs2_macro::ops!([
 	[
 		(MipsOpcode::Special, "R", MipsFunction::decode, [
-			(ADD, arithmetic::add, MipsFunction::Add, 1),
-			(ADDU, arithmetic::addu, MipsFunction::AddU, 1),
-			(AND, arithmetic::and, MipsFunction::And, 1),
-			(JALR, branch::jalr, MipsFunction::JaLR, 1),
-			(JR, branch::jr, MipsFunction::JR, 1),
-			(SLL, arithmetic::sll, MipsFunction::SLL, 1),
+			(ADD, arithmetic::add, MipsFunction::Add, INTEGER_SUM_LOGIC_DELAY),
+			(ADDU, arithmetic::addu, MipsFunction::AddU, INTEGER_SUM_LOGIC_DELAY),
+			(AND, arithmetic::and, MipsFunction::And, INTEGER_SUM_LOGIC_DELAY),
+			(JALR, branch::jalr, MipsFunction::JaLR, INTEGER_BRANCH_JUMP_DELAY),
+			(JR, branch::jr, MipsFunction::JR, INTEGER_BRANCH_JUMP_DELAY),
+			(SLL, arithmetic::sll, MipsFunction::SLL, INTEGER_SHIFT_LUI_DELAY),
 		]),
 		(MipsOpcode::Cop0, "COP0", Cop0Function::decode, [
-			(MFBPC, cop0::mfc0, Cop0Function::MFBPC, 1),
-			(MFC0, cop0::mfc0, Cop0Function::MFC0, 1),
+			(MFBPC, cop0::mfc0, Cop0Function::MFBPC, INTEGER_LOAD_STORE_DELAY),
+			(MFC0, cop0::mfc0, Cop0Function::MFC0, INTEGER_LOAD_STORE_DELAY),
 		]),
 		(MipsOpcode::Cop1, "COP1", Cop1Function::decode, [
 			// N/A
 		]),
 	],
 	[
-		(ADDI, arithmetic::addi, MipsOpcode::AddI, 1),
-		(ADDIU, arithmetic::addiu, MipsOpcode::AddIU, 1),
-		(BNE, branch::bne, MipsOpcode::BNE, 1),
-		(J, branch::j, MipsOpcode::J, 1),
-		(JAL, branch::jal, MipsOpcode::JaL, 1),
-		(LUI, load::lui, MipsOpcode::LUI, 1),
-		(ORI, arithmetic::ori, MipsOpcode::OrI, 1),
-		(SLTI, arithmetic::slti, MipsOpcode::SLTI, 1),
+		(ADDI, arithmetic::addi, MipsOpcode::AddI, INTEGER_SUM_LOGIC_DELAY),
+		(ADDIU, arithmetic::addiu, MipsOpcode::AddIU, INTEGER_SUM_LOGIC_DELAY),
+		(BNE, branch::bne, MipsOpcode::BNE, INTEGER_BRANCH_JUMP_DELAY),
+		(J, branch::j, MipsOpcode::J, INTEGER_BRANCH_JUMP_DELAY),
+		(JAL, branch::jal, MipsOpcode::JaL, INTEGER_BRANCH_JUMP_DELAY),
+		(LUI, load::lui, MipsOpcode::LUI, INTEGER_SHIFT_LUI_DELAY),
+		(ORI, arithmetic::ori, MipsOpcode::OrI, INTEGER_SUM_LOGIC_DELAY),
+		(SLTI, arithmetic::slti, MipsOpcode::SLTI, INTEGER_SUM_LOGIC_DELAY),
 	],
 ]);
 
