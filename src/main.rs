@@ -23,7 +23,8 @@ fn main() {
 	
 	let mut ee_core = EECore::default();
 
-	if let Ok(mut f) = File::open("bios/scph39001.bin") {
+	// if let Ok(mut f) = File::open("bios/scph39001.bin") {
+	if let Ok(mut f) = File::open("bios/scph10000.bin") {
 		let mut prog_buf = if let Ok(metadata) = f.metadata() {
 			Vec::with_capacity(metadata.len().try_into().unwrap())
 		} else {

@@ -1,4 +1,5 @@
 pub mod constants;
+pub mod cop0;
 pub mod ops;
 pub mod pipeline;
 #[cfg(test)]
@@ -9,6 +10,7 @@ use byteorder::{
 	ByteOrder,
 };
 use constants::*;
+use cop0::EECop0Register;
 use ops::NOP;
 use pipeline::*;
 use super::memory::constants::*;
@@ -101,6 +103,90 @@ impl EECore {
 		}
 	}
 
+	/// Reads the value of the HI register.
+	pub fn read_hi(&self) -> u64 {
+		trace!("Reading from HI");
+
+		LittleEndian::read_u64(&self.hi[..])
+	}
+
+	/// Write a value to the HI register.
+	pub fn write_hi(&mut self, value: u64) {
+		trace!("Writing value {} to HI", value);
+
+		LittleEndian::write_u64(&mut self.hi[..], value);
+	}
+
+	/// Reads half of the HI register,
+	/// where `index` is `0` or `1`.
+	pub fn read_hi_half(&self, index: u8) -> u32 {
+		trace!("Reading from HI{}", index);
+
+		let offset = if index == 0 {
+			HALF_REGISTER_WIDTH_BYTES
+		} else {
+			0
+		};
+
+		LittleEndian::read_u32(&self.hi[offset..])
+	}
+
+	/// Write a value to half of the HI register,
+	/// where `index` is `0` or `1`.
+	pub fn write_hi_half(&mut self, index: u8, value: u32) {
+		trace!("Writing value {} to HI{}", value, index);
+
+		let offset = if index == 0 {
+			HALF_REGISTER_WIDTH_BYTES
+		} else {
+			0
+		};
+
+		LittleEndian::write_u32(&mut self.hi[offset..], value);
+	}
+
+	/// Reads the value of the LO register.
+	pub fn read_lo(&self) -> u64 {
+		trace!("Reading from LO");
+
+		LittleEndian::read_u64(&self.lo[..])
+	}
+
+	/// Write a value to the LO register.
+	pub fn write_lo(&mut self, value: u64) {
+		trace!("Writing value {} to LO", value);
+
+		LittleEndian::write_u64(&mut self.lo[..], value);
+	}
+
+	/// Reads half of the LO register,
+	/// where `index` is `0` or `1`.
+	pub fn read_lo_half(&self, index: u8) -> u32 {
+		trace!("Reading from LO{}", index);
+
+		let offset = if index == 0 {
+			HALF_REGISTER_WIDTH_BYTES
+		} else {
+			0
+		};
+
+		LittleEndian::read_u32(&self.lo[offset..])
+	}
+
+	/// Write a value to half of the LO register,
+	/// where `index` is `0` or `1`.
+	pub fn write_lo_half(&mut self, index: u8, value: u32) {
+		trace!("Writing value {} to LO{}", value, index);
+
+		let offset = if index == 0 {
+			HALF_REGISTER_WIDTH_BYTES
+		} else {
+			0
+		};
+
+		LittleEndian::write_u32(&mut self.lo[offset..], value);
+	}
+
 	/// Reads a value from the specified register of COP0.
 	pub fn read_cop0(&self, index: u8) -> u32 {
 		trace!("Reading from COP0 register {}", index);
@@ -116,7 +202,8 @@ impl EECore {
 	}
 
 	pub fn init_as_ee(&mut self) {
-		self.write_cop0(15, EE_PRID);
+		// self.write_cop0(EECop0Register::PRId as u8, EE_PRID);
+		self.write_cop0(EECop0Register::PRId as u8, TEST_PRID);
 	}
 
 	pub fn init_as_iop(&mut self) {

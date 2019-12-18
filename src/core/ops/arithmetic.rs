@@ -64,6 +64,19 @@ pub fn and(cpu: &mut EECore, data: &OpCode) {
 	);
 }
 
+pub fn mult(cpu: &mut EECore, data: &OpCode) {
+	// multiply rs and rt in signed space.
+	// result will be 64-bit. Place into hi and lo (sign-extended).
+	let lhs = cpu.read_register(data.ri_get_source()) as i64;
+	let rhs = cpu.read_register(data.ri_get_target()) as i64;
+	let result = lhs.wrapping_mul(rhs);
+
+	cpu.write_hi((result >> 32) as u64);
+	cpu.write_lo((result as i32) as u64);
+
+	// FIXME: add EE-core specific modification (RRR).
+}
+
 pub fn ori(cpu: &mut EECore, data: &OpCode) {
 	// rt <- rs | ext(imm)
 	let extd_imm = (data.i_get_immediate() as i16) as u64;
@@ -284,6 +297,11 @@ mod tests {
 		test_ee.execute(ops::process_instruction(instruction));
 
 		assert_eq!(test_ee.read_register(3), in_1 & in_2);
+	}
+
+	#[test]
+	fn basic_mult() {
+		unimplemented!()
 	}
 
 	#[test]

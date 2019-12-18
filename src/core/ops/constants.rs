@@ -1,3 +1,4 @@
+use crate::core::cop0::EECop0Register;
 use enum_primitive::*;
 use super::instruction::Instruction;
 
@@ -7,6 +8,7 @@ enum_from_primitive!{
 #[derive(Debug, PartialEq)]
 pub enum MipsOpcode {
 	Special = 0b00_0000,
+	Cache   = 0b10_1111,
 	Cop0    = 0b01_0000,
 	Cop1    = 0b01_0001,
 
@@ -29,6 +31,7 @@ pub enum MipsFunction {
 	And  = 0b10_0100,
 	JaLR = 0b00_1001,
 	JR   = 0b00_1000,
+	Mult = 0b01_1000,
 	SLL  = 0b00_0000,
 }
 }
@@ -45,6 +48,8 @@ impl MipsFunction {
 pub enum Cop0Function {
 	MFBPC,
 	MFC0,
+	MTBPC,
+	MTC0,
 }
 
 const MF0: u8 = 0b0_0000;
@@ -62,7 +67,7 @@ impl Cop0Function {
 			MF0 => {
 				trace!("MF0");
 				match instruction & LAST_11 {
-					0 => if instruction.r_get_destination() == 0b1_1000 {
+					0 => if instruction.r_get_destination() == EECop0Register::Debug as u8 {
 						Some(Cop0Function::MFBPC)
 					} else {
 						Some(Cop0Function::MFC0)
@@ -80,7 +85,14 @@ impl Cop0Function {
 			},
 			MT0 => {
 				trace!("MT0");
-				None
+				match instruction & LAST_11 {
+					0 => if instruction.r_get_destination() == EECop0Register::Debug as u8 {
+						Some(Cop0Function::MTBPC)
+					} else {
+						Some(Cop0Function::MTC0)
+					},
+					_ => None,
+				}
 			},
 			_ => {
 				unreachable!();
@@ -98,6 +110,40 @@ impl Cop1Function {
 	#[inline(always)]
 	pub fn decode(instruction: u32) -> Option<Self> {
 		None
+	}
+}
+
+enum_from_primitive!{
+#[derive(Debug, PartialEq)]
+pub enum CacheFunction {
+	BFH    = 0b0_1100,
+	BHINBT = 0b0_1010,
+	BXLBT  = 0b0_0010,
+	BXSBT  = 0b0_0110,
+	DHIN   = 0b1_1010,
+	DHWBIN = 0b1_1000,
+	DHWOIN = 0b1_1100,
+	DXIN   = 0b1_0110,
+	DXLDT  = 0b1_0001,
+	DXLTG  = 0b1_0000,
+	DXSDT  = 0b1_0011,
+	DXSTG  = 0b1_0010,
+	DXWBIN = 0b1_0100,
+	IFL    = 0b0_1110,
+	IHIN   = 0b0_1011,
+	IXIN   = 0b0_0111,
+	IXLDT  = 0b0_0001,
+	IXLTG  = 0b0_0000,
+	IXSDT  = 0b0_0101,
+	IXSTG  = 0b0_0100,
+}
+}
+
+impl CacheFunction {
+	#[inline(always)]
+	pub fn decode(instruction: u32) -> Option<Self> {
+		let raw_func = instruction.ri_get_target();
+		Self::from_u8(raw_func)
 	}
 }
 
