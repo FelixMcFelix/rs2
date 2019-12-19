@@ -24,6 +24,7 @@ rs2_macro::ops!([
 			(JR, branch::jr, MipsFunction::JR, INTEGER_BRANCH_JUMP_DELAY),
 			(MULT, arithmetic::mult, MipsFunction::Mult, INTEGER_MULT_DELAY),
 			(SLL, arithmetic::sll, MipsFunction::SLL, INTEGER_SHIFT_LUI_DELAY),
+			(SYNC, nop, MipsFunction::Sync, INTEGER_SHIFT_LUI_DELAY),
 		]),
 		(MipsOpcode::Cache, "CACHE", CacheFunction::decode, [
 			(BFH, nop, CacheFunction::BFH, INTEGER_LOAD_STORE_DELAY),

@@ -17,7 +17,7 @@ pub fn bne(cpu: &mut EECore, data: &OpCode) {
 fn inner_bne(cpu: &mut EECore, data: &BranchOpCode) -> BranchResult {
 	// Add immediate to current PC value.
 	if data.temp != 0 {
-		cpu.pc_register = cpu.pc_register.wrapping_add((data.i_get_immediate() as u32) << 2);
+		cpu.pc_register = cpu.pc_register.wrapping_add(u32::from(data.i_get_immediate()) << 2);
 		BranchResult::BRANCHED
 	} else {
 		BranchResult::empty()
@@ -36,7 +36,10 @@ fn inner_j(cpu: &mut EECore, data: &BranchOpCode) -> BranchResult {
 
 pub fn jal(cpu: &mut EECore, data: &OpCode) {
 	// Store PC after BD-slot in R31.
-	cpu.write_register(31, (cpu.pc_register + (OPCODE_LENGTH_BYTES * 2) as u32) as u64);
+	cpu.write_register(
+		31,
+		u64::from(cpu.pc_register.wrapping_add((OPCODE_LENGTH_BYTES * 2) as u32))
+	);
 
 	cpu.branch(data, inner_j as BranchAction, 0);
 }
@@ -46,7 +49,7 @@ pub fn jalr(cpu: &mut EECore, data: &OpCode) {
 
 	cpu.write_register(
 		data.r_get_destination(),
-		(cpu.pc_register + (OPCODE_LENGTH_BYTES * 2) as u32) as u64,
+		u64::from(cpu.pc_register.wrapping_add((OPCODE_LENGTH_BYTES * 2) as u32))
 	);
 
 	if dest & PC_ALIGNED_BITS == 0 {

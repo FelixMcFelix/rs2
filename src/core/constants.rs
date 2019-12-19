@@ -11,6 +11,10 @@ pub const COP0_REGISTER_WIDTH: usize = 32;
 pub const COP0_REGISTER_WIDTH_BYTES: usize = COP0_REGISTER_WIDTH / 8;
 pub const COP0_REGISTER_FILE_SIZE: usize = REGISTER_COUNT * COP0_REGISTER_WIDTH_BYTES;
 
-pub const IOP_PRID: u32 = 0x00;
-pub const EE_PRID: u32  = 0x2e;
-pub const TEST_PRID: u32 = 0xff;
+/// Implementation numbers and their relation to PRId are discussed in the
+/// *EE Core User's Manual 6.0*, pp.77.
+pub const EE_IMPL: u32  = 0x2e;
+pub const IOP_IMPL: u32 = 0x00;
+
+pub const EE_PRID: u32 = EE_IMPL << 8;
+pub const IOP_PRID: u32 = EE_IMPL << 8;

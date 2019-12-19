@@ -24,7 +24,7 @@ pub fn add(cpu: &mut EECore, data: &OpCode) {
 
 pub fn addi(cpu: &mut EECore, data: &OpCode) {
 	let lhs = cpu.read_register(data.ri_get_source()) as i32;
-	let rhs = (data.i_get_immediate() as i16) as i32;
+	let rhs = i32::from(data.i_get_immediate() as i16);
 
 	if let Some(sum) = lhs.checked_add(rhs) {
 		cpu.write_register(
@@ -39,7 +39,7 @@ pub fn addi(cpu: &mut EECore, data: &OpCode) {
 
 pub fn addiu(cpu: &mut EECore, data: &OpCode) {
 	let lhs = cpu.read_register(data.ri_get_source()) as i32;
-	let rhs = (data.i_get_immediate() as i16) as i32;
+	let rhs = i32::from(data.i_get_immediate() as i16);
 
 	cpu.write_register(
 		data.ri_get_target(),
@@ -95,7 +95,7 @@ pub fn sll(cpu: &mut EECore, data: &OpCode) {
 
 pub fn slti(cpu: &mut EECore, data: &OpCode) {
 	let lhs = cpu.read_register(data.ri_get_source()) as i64;
-	let rhs = data.i_get_immediate() as i64;
+	let rhs = i64::from(data.i_get_immediate());
 	cpu.write_register(
 		data.ri_get_target(),
 		if lhs < rhs { 1 } else { 0 },

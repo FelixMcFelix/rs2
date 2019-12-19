@@ -32,7 +32,7 @@ mod tests {
 	use crate::{
 		core::{
 			constants::*,
-			cop0::EECop0Register,
+			cop0::Register,
 			ops::{
 				self,
 				constants::*,
@@ -51,7 +51,7 @@ mod tests {
 		instruction.set_opcode(MipsOpcode::Cop0 as u8);
 		instruction.ri_set_target(1);
 		// FIXME: make constant for each COP0 register.
-		instruction.r_set_destination(EECop0Register::PRId as u8);
+		instruction.r_set_destination(Register::PRId as u8);
 
 		test_ee.execute(ops::process_instruction(instruction));
 

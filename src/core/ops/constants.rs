@@ -1,4 +1,4 @@
-use crate::core::cop0::EECop0Register;
+use crate::core::cop0::Register;
 use enum_primitive::*;
 use super::instruction::Instruction;
 
@@ -33,6 +33,7 @@ pub enum MipsFunction {
 	JR   = 0b00_1000,
 	Mult = 0b01_1000,
 	SLL  = 0b00_0000,
+	Sync = 0b00_1111,
 }
 }
 
@@ -67,7 +68,7 @@ impl Cop0Function {
 			MF0 => {
 				trace!("MF0");
 				match instruction & LAST_11 {
-					0 => if instruction.r_get_destination() == EECop0Register::Debug as u8 {
+					0 => if instruction.r_get_destination() == Register::Debug as u8 {
 						Some(Cop0Function::MFBPC)
 					} else {
 						Some(Cop0Function::MFC0)
@@ -86,7 +87,7 @@ impl Cop0Function {
 			MT0 => {
 				trace!("MT0");
 				match instruction & LAST_11 {
-					0 => if instruction.r_get_destination() == EECop0Register::Debug as u8 {
+					0 => if instruction.r_get_destination() == Register::Debug as u8 {
 						Some(Cop0Function::MTBPC)
 					} else {
 						Some(Cop0Function::MTC0)
@@ -108,7 +109,7 @@ pub enum Cop1Function {
 
 impl Cop1Function {
 	#[inline(always)]
-	pub fn decode(instruction: u32) -> Option<Self> {
+	pub fn decode(_instruction: u32) -> Option<Self> {
 		None
 	}
 }

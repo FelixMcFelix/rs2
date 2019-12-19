@@ -1,9 +1,4 @@
 #[macro_use] extern crate log;
-
-use byteorder::{
-	LittleEndian,
-	ReadBytesExt,
-};
 use std::{
 	convert::TryInto,
 	fs::File,

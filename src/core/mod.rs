@@ -1,5 +1,7 @@
 pub mod constants;
 pub mod cop0;
+pub mod exceptions;
+pub mod mode;
 pub mod ops;
 pub mod pipeline;
 #[cfg(test)]
@@ -10,7 +12,12 @@ use byteorder::{
 	ByteOrder,
 };
 use constants::*;
-use cop0::EECop0Register;
+use cop0::{
+	Register,
+	Status,
+};
+use enum_primitive::*;
+use mode::PrivilegeLevel;
 use ops::NOP;
 use pipeline::*;
 use super::memory::constants::*;
@@ -189,21 +196,21 @@ impl EECore {
 
 	/// Reads a value from the specified register of COP0.
 	pub fn read_cop0(&self, index: u8) -> u32 {
-		trace!("Reading from COP0 register {}", index);
-		let floor = ((index as usize) * COP0_REGISTER_WIDTH_BYTES);
+		trace!("Reading from COP0 register {} ({:?})", index, Register::from_u8(index));
+		let floor = (index as usize) * COP0_REGISTER_WIDTH_BYTES;
 		LittleEndian::read_u32(&self.cop0_register_file[floor..])
 	}
 
 	/// Write a value to the specified register of COP0.s
 	pub fn write_cop0(&mut self, index: u8, value: u32) {
-		trace!("Writing value {} to COP0 register {}", value, index);
-		let floor = ((index as usize) * COP0_REGISTER_WIDTH_BYTES);
+		trace!("Writing value {} to COP0 register {} ({:?})", value, index, Register::from_u8(index));
+		let floor = (index as usize) * COP0_REGISTER_WIDTH_BYTES;
 		LittleEndian::write_u32(&mut self.cop0_register_file[floor..], value);
 	}
 
 	pub fn init_as_ee(&mut self) {
-		// self.write_cop0(EECop0Register::PRId as u8, EE_PRID);
-		self.write_cop0(EECop0Register::PRId as u8, TEST_PRID);
+		self.write_cop0(Register::PRId as u8, EE_PRID);
+		self.write_cop0(Register::Status as u8, Status::default().bits());
 	}
 
 	pub fn init_as_iop(&mut self) {
@@ -278,6 +285,12 @@ impl EECore {
 			new_action,
 			temp,
 		));
+	}
+
+	pub fn get_current_privilege(&self) -> PrivilegeLevel {
+		Status::from_bits_truncate(
+			self.read_cop0(Register::Status as u8)
+		).privilege_level()
 	}
 }
 

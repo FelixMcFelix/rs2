@@ -6,7 +6,7 @@ use super::instruction::Instruction;
 
 pub fn lui(cpu: &mut EECore, data: &OpCode) {
 	// load sign extended shifted value of immediate into rt.
-	let v = data.i_get_immediate() as i64;
+	let v = i64::from(data.i_get_immediate());
 	cpu.write_register(data.ri_get_target(), (v << 16) as u64);
 }
 
