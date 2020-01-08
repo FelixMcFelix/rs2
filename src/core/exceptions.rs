@@ -187,11 +187,11 @@ impl L2Exception {
 			Reset => {
 				status.insert(Status::B_EXCEPTION_VECTOR);
 				status.remove(Status::BUS_ERROR_MASK);
+				cpu.write_cop0(Register::Random as u8, 47);
+				cpu.write_cop0(Register::Wired as u8, 0);
 
 				// TODO
-				// set Cop0_random = 47 (upper bound)
 				// disable config die, ice, dce, nbe, bpe
-				// set cop0_wired = 0
 				// set ccr.cte = 0
 				// disable bpc iae, dre, dwe
 

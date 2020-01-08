@@ -1,4 +1,5 @@
 use crate::core::{
+	exceptions::L1Exception,
 	pipeline::*,
 	EECore,
 };
@@ -17,8 +18,7 @@ pub fn add(cpu: &mut EECore, data: &OpCode) {
 			sum as u64,
 		);	
 	} else {
-		// FIXME: Type = Overflow
-		cpu.fire_exception();
+		cpu.throw_l1_exception(L1Exception::Overflow);
 	}
 }
 
@@ -32,8 +32,7 @@ pub fn addi(cpu: &mut EECore, data: &OpCode) {
 			sum as u64,
 		);	
 	} else {
-		// FIXME: Type = Overflow
-		cpu.fire_exception();
+		cpu.throw_l1_exception(L1Exception::Overflow);
 	}
 }
 

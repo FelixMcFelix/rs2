@@ -7,6 +7,10 @@ use crate::core::{
 
 pub fn ixltg(cpu: &mut EECore, data: &OpCode) {
 	trace!("FIXME: IXLTG is basically NOP atm.");
+
+	if !super::cop0_usable(cpu) {
+		return;
+	}
 	// Read from *instruction cache entries*.
 
 	// Use GPR[rs] as a base pointer, w/ immediate offset.
@@ -23,9 +27,6 @@ pub fn ixltg(cpu: &mut EECore, data: &OpCode) {
 	// FIXME: Need to get tag associated with this element.
 
 	let _taglo = cpu.read_cop0(Register::TagLo as u8);
-	
-
-	// FIXME: should except if COP0 unusable.
 }
 
 #[cfg(test)]

@@ -1,5 +1,6 @@
 use crate::core::{
 	constants::*,
+	exceptions::L1Exception,
 	pipeline::*,
 	EECore,
 };
@@ -55,8 +56,7 @@ pub fn jalr(cpu: &mut EECore, data: &OpCode) {
 	if dest & PC_ALIGNED_BITS == 0 {
 		cpu.branch(data, inner_jr as BranchAction, dest);
 	} else {
-		// FIXME: fire Address Error exception.
-		cpu.fire_exception();
+		cpu.throw_l1_exception(L1Exception::AddressErrorFetchLoad(dest));
 	}
 }
 
@@ -66,8 +66,7 @@ pub fn jr(cpu: &mut EECore, data: &OpCode) {
 	if dest & PC_ALIGNED_BITS == 0 {
 		cpu.branch(data, inner_jr as BranchAction, dest);
 	} else {
-		// FIXME: fire Address Error exception.
-		cpu.fire_exception();
+		cpu.throw_l1_exception(L1Exception::AddressErrorFetchLoad(dest));
 	}
 }
 

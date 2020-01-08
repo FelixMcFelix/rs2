@@ -5,11 +5,13 @@ use crate::core::{
 		Register,
 		Status,
 	},
+	exceptions::L1Exception,
 	pipeline::*,
 	EECore,
 };
 use super::instruction::Instruction;
 
+#[inline(always)]
 fn cop0_usable(cpu: &mut EECore) -> bool {
 	// We need EITHER:
 	// * Kernel mode.
@@ -21,27 +23,30 @@ fn cop0_usable(cpu: &mut EECore) -> bool {
 	let valid = non_k_usable || cpu.get_current_privilege().is_kernel();
 
 	if !valid {
-		// FIXME: this must be a "Coprocessor Unusable" Exception.
-		cpu.fire_exception();
+		cpu.throw_l1_exception(L1Exception::CoprocessorUnusable(0));
 	}
 
 	valid
 }
 
 pub fn mfc0(cpu: &mut EECore, data: &OpCode) {
+	if !cop0_usable(cpu) {
+		return;
+	}
+
 	// load sign extended value of COP0[rd] into rt.
 	let v = cpu.read_cop0(data.r_get_destination()) as i32;
 	cpu.write_register(data.ri_get_target(), v as u64);
-
-	// FIXME: should except if COP0 unusable.
 }
 
 pub fn mtc0(cpu: &mut EECore, data: &OpCode) {
+	if !cop0_usable(cpu) {
+		return;
+	}
+
 	// store 32 lsbs of GPR[rt] into COP0[rd]
 	let v = cpu.read_register(data.ri_get_target()) as u32;
 	cpu.write_cop0(data.r_get_destination(), v);
-
-	// FIXME: should except if COP0 unusable.
 }
 
 #[cfg(test)]
@@ -65,7 +70,6 @@ mod tests {
 
 	#[test]
 	fn basic_mfc0() {
-		// On EE Core, this should be 0x2e.
 		let mut test_ee = EECore::default();
 
 		// FIXME: design some cleaner way of creating COP0 codes.
@@ -82,6 +86,16 @@ mod tests {
 
 	#[test]
 	fn basic_mtc0() {
+		unimplemented!()
+	}
+
+	#[test]
+	fn cop0_always_usable_in_kernel() {
+		unimplemented!()
+	}
+
+	#[test]
+	fn cop0_needs_enabled_in_usermode() {
 		unimplemented!()
 	}
 }

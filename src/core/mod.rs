@@ -284,6 +284,8 @@ impl EECore {
 	}
 
 	pub fn throw_l1_exception(&mut self, ex: L1Exception) {
+		trace!("L1 Exception: {:?}", ex);
+
 		// Switch to kernel mode (EXL).
 		// Save addresses (put PC into Cop0::EPC, set cause.bd if necessary)
 		//  Don't save if in handler already.
@@ -323,6 +325,8 @@ impl EECore {
 	}
 
 	pub fn throw_l2_exception(&mut self, ex: L2Exception) {
+		trace!("L2 Exception: {:?}", ex);
+
 		let status = self.read_cop0(Register::Status as u8);
 		let mut status = Status::from_bits_truncate(status);
 

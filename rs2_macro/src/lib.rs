@@ -4,8 +4,6 @@ use quote::*;
 use syn::{
 	Expr,
 	ExprArray,
-	Macro,
-	Path,
 	parse_macro_input,
 };
 
@@ -63,6 +61,11 @@ pub fn ops(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 		pub fn process_instruction(instruction: u32) -> crate::core::pipeline::OpCode {
 			let mut out = crate::core::pipeline::OpCode::default();
 			out.raw = instruction;
+
+			if instruction == 0 {
+				trace!("Explicit NOP");
+				return out;
+			}
 
 			let raw_opcode = instruction.get_opcode();
 			let opcode = crate::core::ops::constants::MipsOpcode::from_u8(raw_opcode);
