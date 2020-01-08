@@ -13,10 +13,15 @@ use byteorder::{
 };
 use constants::*;
 use cop0::{
+	Cause,
 	Register,
 	Status,
 };
 use enum_primitive::*;
+use exceptions::{
+	L1Exception,
+	L2Exception,
+};
 use mode::PrivilegeLevel;
 use ops::NOP;
 use pipeline::*;
@@ -276,6 +281,81 @@ impl EECore {
 	pub fn in_exception(&mut self) -> bool {
 		// FIXME: manipulate A LOT of COP0 state.
 		self.exception
+	}
+
+	pub fn throw_l1_exception(&mut self, ex: L1Exception) {
+		// Switch to kernel mode (EXL).
+		// Save addresses (put PC into Cop0::EPC, set cause.bd if necessary)
+		//  Don't save if in handler already.
+		//  Put PC of triggering instruction into EPC if not BD, else put preceding instruction.
+		// Set exception cause codes mandated by each exception.
+		// Jump to the vector.
+		let status = self.read_cop0(Register::Status as u8);
+		let mut status = Status::from_bits_truncate(status);
+
+		// Set exception code.
+		let mut cause = self.read_cop0(Register::Cause as u8);
+		cause &= !Cause::EXCEPTION_CODE_L1.bits();
+		cause |= (ex.to_exception_code() as u32) << 2;
+		let mut cause = Cause::from_bits_truncate(cause);
+
+		// NOTE: official docs make it unclear whether COMMON is taken for all
+		// in EX1, or just for the TLB instructions.
+		// Pseudocode suggests all, text suggests only TLB.
+		if !status.contains(Status::EXCEPTION_LEVEL) {
+			status.insert(Status::EXCEPTION_LEVEL);
+
+			let saved_addr = if self.branch_delay_slot_active.is_none() {
+				cause.insert(Cause::BRANCH_DELAY_1);
+				self.pc_register
+			} else {
+				cause.remove(Cause::BRANCH_DELAY_1);
+				self.pc_register - OPCODE_LENGTH_BYTES as u32
+			};
+
+			self.write_cop0(Register::EPC as u8, saved_addr);
+			self.write_cop0(Register::Status as u8, status.bits());
+		}
+
+		ex.specific_handling(self, &mut cause);
+		self.write_cop0(Register::Cause as u8, cause.bits());
+		self.pc_register = ex.to_exception_vector(status);
+	}
+
+	pub fn throw_l2_exception(&mut self, ex: L2Exception) {
+		let status = self.read_cop0(Register::Status as u8);
+		let mut status = Status::from_bits_truncate(status);
+
+		// FIRST: set code.
+		let mut cause = self.read_cop0(Register::Cause as u8);
+		cause &= !Cause::EXCEPTION_CODE_L2.bits();
+		cause |= (ex as u32) << 16;
+		let mut cause = Cause::from_bits_truncate(cause);
+
+		// NOTE: official docs make it unclear whether COMMON is taken for all
+		// in EX1, or just for the TLB instructions.
+		// Pseudocode suggests all, text suggests only TLB.
+		if !status.contains(Status::ERROR_LEVEL) {
+			status.insert(Status::ERROR_LEVEL);
+
+			let saved_addr = if self.branch_delay_slot_active.is_none() {
+				cause.insert(Cause::BRANCH_DELAY_2);
+				self.pc_register
+			} else {
+				cause.remove(Cause::BRANCH_DELAY_2);
+				self.pc_register - OPCODE_LENGTH_BYTES as u32
+			};
+
+			self.write_cop0(Register::ErrorEPC as u8, saved_addr);
+		}
+
+		// write back status, cause.
+		self.write_cop0(Register::Cause as u8, cause.bits());
+
+		self.pc_register = ex.to_exception_vector(status);
+
+		ex.specific_handling(self, &mut status);
+		self.write_cop0(Register::Status as u8, status.bits());
 	}
 
 	#[inline]

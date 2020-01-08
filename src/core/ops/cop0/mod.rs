@@ -1,10 +1,32 @@
 pub mod cache;
 
 use crate::core::{
+	cop0::{
+		Register,
+		Status,
+	},
 	pipeline::*,
 	EECore,
 };
 use super::instruction::Instruction;
+
+fn cop0_usable(cpu: &mut EECore) -> bool {
+	// We need EITHER:
+	// * Kernel mode.
+	// * COP0 Usable.
+	// If neither, also throw a "Coprocessor Unusable" exception.
+	let non_k_usable = Status::from_bits_truncate(cpu.read_cop0(Register::Status as u8))
+		.contains(Status::COP0_USABLE);
+
+	let valid = non_k_usable || cpu.get_current_privilege().is_kernel();
+
+	if !valid {
+		// FIXME: this must be a "Coprocessor Unusable" Exception.
+		cpu.fire_exception();
+	}
+
+	valid
+}
 
 pub fn mfc0(cpu: &mut EECore, data: &OpCode) {
 	// load sign extended value of COP0[rd] into rt.

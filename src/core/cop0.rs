@@ -98,7 +98,7 @@ pub struct Status: u32 {
 	/// Int[0] Interrupt mask.
 	const INTERRUPT_MASK_2   = 0b0000_0000_0000_0000_0000_0100_0000_0000;
 
-	/// Int[0] Interrupt mask.
+	/// Int[1] Interrupt mask.
 	const INTERRUPT_MASK_3   = 0b0000_0000_0000_0000_0000_1000_0000_0000;
 
 	/// Internal Timer Interrupt mask.
@@ -194,4 +194,37 @@ impl Status {
 			PrivilegeLevel::Kernel(ExceptionLevel::NoException)
 		}
 	}
+}
+
+bitflags!{
+/// Flags contained within COP0's cause register.
+/// These are defined within the *EE Core User's Manual 6.0*, pp.75.
+pub struct Cause: u32 {
+	/// 5-bit field determining the level 1 exception code.
+	const EXCEPTION_CODE_L1       = 0b0000_0000_0000_0000_0000_0000_0111_1100;
+
+	/// Set when an I[0] interrupt is pending.
+	const PENDING_INTERRUPT_I1    = 0b0000_0000_0000_0000_0000_0100_0000_0000;
+
+	/// Set when an I[1] interrupt is pending.
+	const PENDING_INTERRUPT_I0    = 0b0000_0000_0000_0000_0000_1000_0000_0000;
+
+	/// Set when a timer interrupt is pending.
+	const PENDING_INTERRUPT_TIMER = 0b0000_0000_0000_0000_1000_0000_0000_0000;
+
+	/// 3-bit field determining the level 2 exception code.
+	const EXCEPTION_CODE_L2       = 0b0000_0000_0000_0111_0000_0000_0000_0000;
+
+	/// 2-bit field determining the Coprocessor responsible for a
+	/// "Coprocessor Unusable" Exception.
+	const COPROCESSOR_NUMBER      = 0b0011_0000_0000_0000_0000_0000_0000_0000;
+
+	/// Set if a level 2 exception (not including reset) occurs from an instruction
+	/// placed in the branch delay slot.
+	const BRANCH_DELAY_2          = 0b0100_0000_0000_0000_0000_0000_0000_0000;
+
+	/// Set if a level 1 exception  occurs from an instruction
+	/// placed in the branch delay slot.
+	const BRANCH_DELAY_1          = 0b1000_0000_0000_0000_0000_0000_0000_0000;
+}
 }
