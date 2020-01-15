@@ -16,6 +16,7 @@ use enum_primitive::*;
 use super::{
 	cop0::{
 		Cause,
+		Config,
 		Register,
 		Status,
 	},
@@ -123,7 +124,7 @@ impl L1Exception {
 
 				// TODO
 				// Store new tlb entry/index in "Random" Cop0 register.
-				unimplemented!()
+				// unimplemented!()
 			},
 			AddressErrorStore(addr) | AddressErrorFetchLoad(addr) => {
 				bad_v_addr(cpu, addr);
@@ -149,7 +150,7 @@ fn fill_ctx_entryhi(cpu: &mut EECore, addr: u32) {
 	// and on page table address.
 
 	// Fill out EntryHi using addr and current ASID.
-	unimplemented!()
+	// unimplemented!()
 }
 
 enum_from_primitive!{
@@ -190,14 +191,21 @@ impl L2Exception {
 				cpu.write_cop0(Register::Random as u8, 47);
 				cpu.write_cop0(Register::Wired as u8, 0);
 
+				let mut config = Config::from_bits_truncate(cpu.read_cop0(Register::Config as u8));
+				config.remove(
+					Config::ENABLE_DUAL_ISSUE | Config::ENABLE_INSTR_CACHE |
+					Config::ENABLE_DATA_CACHE | Config::ENABLE_NB_LOAD |
+					Config::ENABLE_BRANCH_PREDICTION
+				);
+				cpu.write_cop0(Register::Config as u8, config.bits());
+
 				// TODO
-				// disable config die, ice, dce, nbe, bpe
 				// set ccr.cte = 0
 				// disable bpc iae, dre, dwe
 
 				// set valid, dirty, lrf, lock bits of D$ to 0
 				// set valid, lrf bits of I$ to t0
-				unimplemented!()
+				// unimplemented!()
 			},
 			Nmi => {
 				status.insert(Status::B_EXCEPTION_VECTOR);

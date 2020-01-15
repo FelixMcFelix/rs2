@@ -17,10 +17,10 @@ fn cop0_usable(cpu: &mut EECore) -> bool {
 	// * Kernel mode.
 	// * COP0 Usable.
 	// If neither, also throw a "Coprocessor Unusable" exception.
-	let non_k_usable = Status::from_bits_truncate(cpu.read_cop0(Register::Status as u8))
-		.contains(Status::COP0_USABLE);
+	let status = Status::from_bits_truncate(cpu.read_cop0_direct(Register::Status as u8));
+	let non_k_usable = status.contains(Status::COP0_USABLE);
 
-	let valid = non_k_usable || cpu.get_current_privilege().is_kernel();
+	let valid = non_k_usable || status.privilege_level().is_kernel();
 
 	if !valid {
 		cpu.throw_l1_exception(L1Exception::CoprocessorUnusable(0));

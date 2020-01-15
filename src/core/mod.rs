@@ -14,6 +14,7 @@ use byteorder::{
 use constants::*;
 use cop0::{
 	Cause,
+	Config,
 	Register,
 	Status,
 };
@@ -25,7 +26,10 @@ use exceptions::{
 use mode::PrivilegeLevel;
 use ops::NOP;
 use pipeline::*;
-use super::memory::constants::*;
+use super::memory::{
+	constants::*,
+	Memory,
+};
 
 pub struct EECore {
 	pub register_file: [u8; REGISTER_FILE_SIZE],
@@ -35,10 +39,7 @@ pub struct EECore {
 	pub sa_register: u32,
 	pub pc_register: u32,
 
-	/// Hack.
-	///
-	/// FIXME: exception logic should depend on COP0 state.
-	pub exception: bool,
+	pub memory: Memory,
 
 	/// Code held by a Branch-type instruction.
 	///
@@ -47,6 +48,9 @@ pub struct EECore {
 	/// This is not the instruction *in* the branch delay slot,
 	/// but instead indicates that the next call to [`execute`](#method.execute) is such.
 	pub branch_delay_slot_active: Option<BranchOpCode>,
+
+	/// Whether dual issue of instructions is enabled or disabled.
+	pub dual_issue: bool,
 }
 
 impl EECore {
@@ -60,9 +64,11 @@ impl EECore {
 			sa_register: 0,
 			pc_register: BIOS_START as u32,
 
-			exception: false,
+			memory: Memory::new(vec![0;4]),
 
 			branch_delay_slot_active: None,
+
+			dual_issue: false,
 		}
 	}
 
@@ -201,21 +207,58 @@ impl EECore {
 
 	/// Reads a value from the specified register of COP0.
 	pub fn read_cop0(&self, index: u8) -> u32 {
-		trace!("Reading from COP0 register {} ({:?})", index, Register::from_u8(index));
+		let value = self.read_cop0_direct(index);
+
+		#[cfg(debug_assertions)]
+		{
+			let printable = format_cop0(value, index);
+			trace!("Reading {:?} from COP0 register {} ({:?})", printable, index, Register::from_u8(index));
+		}
+
+		value
+	}
+
+	/// Reads a value from the specified register of COP0.
+	#[inline]
+	pub fn read_cop0_direct(&self, index: u8) -> u32 {
 		let floor = (index as usize) * COP0_REGISTER_WIDTH_BYTES;
 		LittleEndian::read_u32(&self.cop0_register_file[floor..])
 	}
 
-	/// Write a value to the specified register of COP0.s
+	/// Write a value to the specified register of COP0.
 	pub fn write_cop0(&mut self, index: u8, value: u32) {
-		trace!("Writing value {} to COP0 register {} ({:?})", value, index, Register::from_u8(index));
+		let bmask = cop0::get_writable_bitmask(index);
+		let value = (value & bmask) | (self.read_cop0_direct(index) & !bmask);
+		#[cfg(debug_assertions)]
+		{
+			let printable = format_cop0(value, index);
+			trace!("Writing value {:?} ({:032b}) to COP0 register {} ({:?})", printable, value, index, Register::from_u8(index));
+		}
+		self.write_cop0_direct(index, value);
+	}
+
+	/// Write a value to the specified register of COP0.
+	#[inline]
+	pub fn write_cop0_direct(&mut self, index: u8, value: u32) {
 		let floor = (index as usize) * COP0_REGISTER_WIDTH_BYTES;
 		LittleEndian::write_u32(&mut self.cop0_register_file[floor..], value);
+
+		match Register::from_u8(index) {
+			Some(Register::Config) => self.update_config(value),
+			_ => {},
+		}
+	}
+
+	fn update_config(&mut self, value: u32) {
+		let config = Config::from_bits_truncate(value);
+
+		self.dual_issue = config.contains(Config::ENABLE_DUAL_ISSUE);
 	}
 
 	pub fn init_as_ee(&mut self) {
-		self.write_cop0(Register::PRId as u8, EE_PRID);
-		self.write_cop0(Register::Status as u8, Status::default().bits());
+		self.write_cop0_direct(Register::PRId as u8, EE_PRID);
+		self.write_cop0_direct(Register::Status as u8, Status::default().bits());
+		self.write_cop0_direct(Register::Config as u8, Config::default().bits());
 	}
 
 	pub fn init_as_iop(&mut self) {
@@ -226,6 +269,16 @@ impl EECore {
 	///
 	/// This attempts to fetch and issue two instructions from memory.
 	pub fn cycle(&mut self, program: &[u8]) {
+		// Timer interrupt.
+		// FIXME: does this happen befpre or after execution?
+		let count = self.read_cop0_direct(Register::Count as u8).wrapping_add(1);
+		self.write_cop0_direct(Register::Count as u8, count);
+		if count == self.read_cop0_direct(Register::Compare as u8) {
+			// FIXME: magic number
+			// FIXME: needs to be masked.
+			self.throw_l1_exception(L1Exception::Interrupt(7))
+		}
+
 		// Read and parse two instructions, put them into the pipeline.
 		// FIXME: hack to avoid MMU during early BIOS testing.
 
@@ -252,9 +305,14 @@ impl EECore {
 		let p1 = ops::process_instruction(i1);
 		self.execute(p1);
 		// println!("{:?}, {:?}", p1.data, p1.delay);
-		let p2 = ops::process_instruction(i2);
-		self.execute(p2);
+
+		if self.dual_issue {
+			let p2 = ops::process_instruction(i2);
+			self.execute(p2);
+		}
 		// println!("{:?}, {:?}", p2.data, p2.delay);
+
+		// FIXME: single-/dual-issue should be tied to the relevant field of COP0[Config]
 	}
 
 	pub fn execute(&mut self, instruction: OpCode) {
@@ -272,15 +330,8 @@ impl EECore {
 		}
 	}
 
-	pub fn fire_exception(&mut self) {
-		// Codes are on user's manual v6.0, p75/180.
-		// FIXME: manipulate A LOT of COP0 state.
-		self.exception = true;
-	}
-
 	pub fn in_exception(&mut self) -> bool {
-		// FIXME: manipulate A LOT of COP0 state.
-		self.exception
+		self.get_current_privilege().is_in_exception()
 	}
 
 	pub fn throw_l1_exception(&mut self, ex: L1Exception) {
@@ -292,11 +343,11 @@ impl EECore {
 		//  Put PC of triggering instruction into EPC if not BD, else put preceding instruction.
 		// Set exception cause codes mandated by each exception.
 		// Jump to the vector.
-		let status = self.read_cop0(Register::Status as u8);
+		let status = self.read_cop0_direct(Register::Status as u8);
 		let mut status = Status::from_bits_truncate(status);
 
 		// Set exception code.
-		let mut cause = self.read_cop0(Register::Cause as u8);
+		let mut cause = self.read_cop0_direct(Register::Cause as u8);
 		cause &= !Cause::EXCEPTION_CODE_L1.bits();
 		cause |= (ex.to_exception_code() as u32) << 2;
 		let mut cause = Cause::from_bits_truncate(cause);
@@ -315,23 +366,23 @@ impl EECore {
 				self.pc_register - OPCODE_LENGTH_BYTES as u32
 			};
 
-			self.write_cop0(Register::EPC as u8, saved_addr);
-			self.write_cop0(Register::Status as u8, status.bits());
+			self.write_cop0_direct(Register::EPC as u8, saved_addr);
+			self.write_cop0_direct(Register::Status as u8, status.bits());
 		}
 
 		ex.specific_handling(self, &mut cause);
-		self.write_cop0(Register::Cause as u8, cause.bits());
+		self.write_cop0_direct(Register::Cause as u8, cause.bits());
 		self.pc_register = ex.to_exception_vector(status);
 	}
 
 	pub fn throw_l2_exception(&mut self, ex: L2Exception) {
 		trace!("L2 Exception: {:?}", ex);
 
-		let status = self.read_cop0(Register::Status as u8);
+		let status = self.read_cop0_direct(Register::Status as u8);
 		let mut status = Status::from_bits_truncate(status);
 
 		// FIRST: set code.
-		let mut cause = self.read_cop0(Register::Cause as u8);
+		let mut cause = self.read_cop0_direct(Register::Cause as u8);
 		cause &= !Cause::EXCEPTION_CODE_L2.bits();
 		cause |= (ex as u32) << 16;
 		let mut cause = Cause::from_bits_truncate(cause);
@@ -350,16 +401,16 @@ impl EECore {
 				self.pc_register - OPCODE_LENGTH_BYTES as u32
 			};
 
-			self.write_cop0(Register::ErrorEPC as u8, saved_addr);
+			self.write_cop0_direct(Register::ErrorEPC as u8, saved_addr);
 		}
 
 		// write back status, cause.
-		self.write_cop0(Register::Cause as u8, cause.bits());
+		self.write_cop0_direct(Register::Cause as u8, cause.bits());
 
 		self.pc_register = ex.to_exception_vector(status);
 
 		ex.specific_handling(self, &mut status);
-		self.write_cop0(Register::Status as u8, status.bits());
+		self.write_cop0_direct(Register::Status as u8, status.bits());
 	}
 
 	#[inline]
@@ -373,8 +424,17 @@ impl EECore {
 
 	pub fn get_current_privilege(&self) -> PrivilegeLevel {
 		Status::from_bits_truncate(
-			self.read_cop0(Register::Status as u8)
+			self.read_cop0_direct(Register::Status as u8)
 		).privilege_level()
+	}
+}
+
+fn format_cop0(value: u32, register: u8) -> Box<dyn core::fmt::Debug> {
+	match Register::from_u8(register) {
+		Some(Register::Config) => Box::new(Config::from_bits_truncate(value)),
+		Some(Register::Status) => Box::new(Status::from_bits_truncate(value)),
+		Some(Register::Cause) => Box::new(Cause::from_bits_truncate(value)),
+		_ => Box::new(value),
 	}
 }
 

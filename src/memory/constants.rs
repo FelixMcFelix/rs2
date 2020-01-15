@@ -1,4 +1,4 @@
-/// Starting address of useg/suseg/kuseg.
+/// Starting virtual address of useg/suseg/kuseg.
 ///
 /// Useg is the region from `USEG_START` to `KSEG0_START - 1`,
 /// i.e., with 3 MSBs set to `000`.
@@ -7,7 +7,9 @@
 /// User/supervisor/kernel access.
 pub const USEG_START: usize = 0x0000_0000;
 
-/// Starting address of kseg0.
+pub const SPRAM_START: usize = 0x7000_0000;
+
+/// Starting virtual address of kseg0.
 ///
 /// Kseg0 is the region from `KSEG0_START` to `KSEG1_START - 1`.
 /// This maps to the physical address space `0x0000_0000` to `0x1FFF_FFFF`,
@@ -17,7 +19,7 @@ pub const USEG_START: usize = 0x0000_0000;
 /// Kernel access only. Caching controlled by k0 field of Config register (COP0?).
 pub const KSEG0_START: usize = 0x8000_0000;
 
-/// Starting address of kseg1.
+/// Starting virtual address of kseg1.
 ///
 /// Kseg1 is the region from `KSEG1_START` to `SSEG_START - 1`.
 /// This maps to the physical address space `0x0000_0000` to `0x1FFF_FFFF`,
@@ -27,9 +29,7 @@ pub const KSEG0_START: usize = 0x8000_0000;
 /// Kernel access only. Caching disabled.
 pub const KSEG1_START: usize = 0xA000_0000;
 
-pub const BIOS_START: usize = 0xBFC0_0000;
-
-/// Starting address of ksseg/sseg.
+/// Starting virtual address of ksseg/sseg.
 ///
 /// Sseg is the region from `SSEG1_START` to `KSEG3_START - 1`,
 /// i.e., with 3 MSBs set to `110`.
@@ -38,7 +38,7 @@ pub const BIOS_START: usize = 0xBFC0_0000;
 /// Supervisor/kernel access.
 pub const SSEG_START: usize = 0xC000_0000;
 
-/// Starting address of kseg3.
+/// Starting virtual address of kseg3.
 ///
 /// Kseg3 is the region from `KSEG3_START` to `0xFFFF_FFFF`,
 /// i.e., with 3 MSBs set to `111`.
@@ -46,3 +46,21 @@ pub const SSEG_START: usize = 0xC000_0000;
 ///
 /// Kernel access only.
 pub const KSEG3_START: usize = 0xE000_0000;
+
+// These DMA addresses are courtesy of https://psi-rockin.github.io/ps2tek/.
+pub const IO_REGISTERS_PHYSICAL: usize = 0x1000_0000;
+
+pub const VU0_CODE_PHYSICAL: usize = 0x1100_0000;
+pub const VU0_DATA_PHYSICAL: usize = 0x1100_4000;
+pub const VU1_CODE_PHYSICAL: usize = 0x1100_8000;
+pub const VU1_DATA_PHYSICAL: usize = 0x1100_C000;
+
+pub const GS_PRIV_REGISTERS_PHYSICAL: usize = 0x1200_0000;
+
+pub const IOP_RAM_PHYSICAL: usize = 0x1C00_0000;
+
+pub const BIOS_PHYSICAL: usize = 0x1FC0_0000;
+pub const BIOS_START: usize = BIOS_PHYSICAL + KSEG1_START;
+
+/// Amount of physical memory in the PS2: 32 MiB.
+pub const PHYSICAL_MEMORY_SIZE: usize = 32 * (1 << (10 * 2));

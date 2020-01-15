@@ -12,6 +12,15 @@ impl PrivilegeLevel {
 			false
 		}
 	}
+
+	pub fn is_in_exception(&self) -> bool {
+		use ExceptionLevel::*;
+
+		match self {
+			Self::Kernel(Level1) | Self::Kernel(Level2) => true,
+			_ => false,
+		}
+	}
 }
 
 pub enum ExceptionLevel {

@@ -164,8 +164,8 @@ pub struct Status: u32 {
 	/// A value of `1` allows use outside of kernel mode.
 	const COPS_USABLE = Self::COP0_USABLE.bits
 		| Self::COP1_USABLE.bits
-		| Self::COP1_USABLE.bits
-		| Self::COP1_USABLE.bits;
+		| Self::COP2_USABLE.bits
+		| Self::COP3_USABLE.bits;
 }
 }
 
@@ -200,8 +200,18 @@ bitflags!{
 /// Flags contained within COP0's cause register.
 /// These are defined within the *EE Core User's Manual 6.0*, pp.75.
 pub struct Cause: u32 {
+	const EXCEPTION_CODE_L1_B0    = 0b0000_0000_0000_0000_0000_0000_0000_0100;
+	const EXCEPTION_CODE_L1_B1    = 0b0000_0000_0000_0000_0000_0000_0000_1000;
+	const EXCEPTION_CODE_L1_B2    = 0b0000_0000_0000_0000_0000_0000_0001_000;
+	const EXCEPTION_CODE_L1_B3    = 0b0000_0000_0000_0000_0000_0000_0010_0000;
+	const EXCEPTION_CODE_L1_B4    = 0b0000_0000_0000_0000_0000_0000_0100_0000;
+
 	/// 5-bit field determining the level 1 exception code.
-	const EXCEPTION_CODE_L1       = 0b0000_0000_0000_0000_0000_0000_0111_1100;
+	const EXCEPTION_CODE_L1 = Self::EXCEPTION_CODE_L1_B0.bits
+		| Self::EXCEPTION_CODE_L1_B1.bits
+		| Self::EXCEPTION_CODE_L1_B2.bits
+		| Self::EXCEPTION_CODE_L1_B3.bits
+		| Self::EXCEPTION_CODE_L1_B4.bits;
 
 	/// Set when an I[0] interrupt is pending.
 	const PENDING_INTERRUPT_I1    = 0b0000_0000_0000_0000_0000_0100_0000_0000;
@@ -212,12 +222,22 @@ pub struct Cause: u32 {
 	/// Set when a timer interrupt is pending.
 	const PENDING_INTERRUPT_TIMER = 0b0000_0000_0000_0000_1000_0000_0000_0000;
 
+	const EXCEPTION_CODE_L2_B0    = 0b0000_0000_0000_0001_0000_0000_0000_0000;
+	const EXCEPTION_CODE_L2_B1    = 0b0000_0000_0000_0010_0000_0000_0000_0000;
+	const EXCEPTION_CODE_L2_B2    = 0b0000_0000_0000_0100_0000_0000_0000_0000;
+
 	/// 3-bit field determining the level 2 exception code.
-	const EXCEPTION_CODE_L2       = 0b0000_0000_0000_0111_0000_0000_0000_0000;
+	const EXCEPTION_CODE_L2 = Self::EXCEPTION_CODE_L2_B0.bits
+		| Self::EXCEPTION_CODE_L2_B1.bits
+		| Self::EXCEPTION_CODE_L2_B2.bits;
+
+	const COPROCESSOR_B0          = 0b0001_0000_0000_0000_0000_0000_0000_0000;
+	const COPROCESSOR_B1          = 0b0010_0000_0000_0000_0000_0000_0000_0000;
 
 	/// 2-bit field determining the Coprocessor responsible for a
 	/// "Coprocessor Unusable" Exception.
-	const COPROCESSOR_NUMBER      = 0b0011_0000_0000_0000_0000_0000_0000_0000;
+	const COPROCESSOR_NUMBER = Self::COPROCESSOR_B0.bits
+		| Self::COPROCESSOR_B1.bits;
 
 	/// Set if a level 2 exception (not including reset) occurs from an instruction
 	/// placed in the branch delay slot.
@@ -227,4 +247,89 @@ pub struct Cause: u32 {
 	/// placed in the branch delay slot.
 	const BRANCH_DELAY_1          = 0b1000_0000_0000_0000_0000_0000_0000_0000;
 }
+}
+
+
+bitflags!{
+/// Flags contained within COP0's config register.
+/// These are defined within the *EE Core User's Manual 6.0*, pp.78.
+pub struct Config: u32 {
+	const KSEG0_CACHE_MODE_B0      = 0b0000_0000_0000_0000_0000_0000_0000_0001;
+	const KSEG0_CACHE_MODE_B1      = 0b0000_0000_0000_0000_0000_0000_0000_0010;
+	const KSEG0_CACHE_MODE_B2      = 0b0000_0000_0000_0000_0000_0000_0000_0100;
+
+	/// 3-bit field denoting the current cache mode of KSEG0.
+	///
+	/// This has the pattern:
+	/// * `000` => *Cached w/o writeback & write allocate*
+	/// * `010` => *Uncached*
+	/// * `011` => *Cached w/ writeback & write allocate*
+	/// * `111` => *Uncached, unaccelerated*
+	const KSEG0_CACHE_MODE = Self::KSEG0_CACHE_MODE_B0.bits
+		| Self::KSEG0_CACHE_MODE_B1.bits
+		| Self::KSEG0_CACHE_MODE_B2.bits;
+
+	const DATA_CACHE_B0            = 0b0000_0000_0000_0000_0000_0000_0100_0000;
+	const DATA_CACHE_B1            = 0b0000_0000_0000_0000_0000_0000_1000_0000;
+	const DATA_CACHE_B2            = 0b0000_0000_0000_0000_0000_0001_0000_0000;
+
+	/// 3-bit field denoting data cache size (8kB blocks).
+	///
+	/// This should only be set to `001` (i.e., 8kB).
+	const DATA_CACHE_SIZE = Self::DATA_CACHE_B0.bits
+		| Self::DATA_CACHE_B1.bits
+		| Self::DATA_CACHE_B2.bits;
+
+	const INSTR_CACHE_B0           = 0b0000_0000_0000_0000_0000_0010_0000_0000;
+	const INSTR_CACHE_B1           = 0b0000_0000_0000_0000_0000_0100_0000_0000;
+	const INSTR_CACHE_B2           = 0b0000_0000_0000_0000_0000_1000_0000_0000;
+
+	/// 3-bit field denoting instruction cache size (8kB blocks).
+	///
+	/// This should only be set to `010` (i.e., 16kB).
+	const INSTR_CACHE_SIZE = Self::INSTR_CACHE_B0.bits
+		| Self::INSTR_CACHE_B1.bits
+		| Self::INSTR_CACHE_B2.bits;
+
+	/// Enable branch prediction.
+	const ENABLE_BRANCH_PREDICTION = 0b0000_0000_0000_0000_0001_0000_0000_0000;
+
+	/// Enable non-blocking loads.
+	const ENABLE_NB_LOAD           = 0b0000_0000_0000_0000_0010_0000_0000_0000;
+
+	/// Enable data cache.
+	const ENABLE_DATA_CACHE        = 0b0000_0000_0000_0001_0000_0000_0000_0000;
+
+	/// Enable instruction cache.
+	const ENABLE_INSTR_CACHE       = 0b0000_0000_0000_0010_0000_0000_0000_0000;
+
+	/// Enable parallel issue of 2 instructions to pipelines.
+	const ENABLE_DUAL_ISSUE        = 0b0000_0000_0000_0100_0000_0000_0000_0000;
+
+	const BUS_CLOCK_RATIO_B0       = 0b0001_0000_0000_0000_0000_0000_0000_0000;
+	const BUS_CLOCK_RATIO_B1       = 0b0010_0000_0000_0000_0000_0000_0000_0000;
+	const BUS_CLOCK_RATIO_B2       = 0b0100_0000_0000_0000_0000_0000_0000_0000;
+
+	/// 3-bit field denoting bus clock ratio.
+	///
+	/// Supposedly "value from dividing processor clock frequency by 2".
+	const BUS_CLOCK_RATIO = Self::BUS_CLOCK_RATIO_B0.bits
+		| Self::BUS_CLOCK_RATIO_B1.bits
+		| Self::BUS_CLOCK_RATIO_B2.bits;
+}
+}
+
+impl Default for Config {
+	fn default() -> Self {
+		Self::from_bits_truncate(0b0000_0000_0000_0000_0000_0100_0100_0000)
+	}
+}
+
+/// Used to write-protect certain bits/fields
+/// which should (from the perspecive of running code)
+/// be immutable.
+pub fn get_writable_bitmask(index: u8) -> u32 {
+	match index {
+		_ => 0xff_ff_ff_ff,
+	}
 }
