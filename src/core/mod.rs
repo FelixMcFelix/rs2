@@ -265,6 +265,32 @@ impl EECore {
 		
 	}
 
+	pub fn read_memory(&mut self, v_addr: u32, size: usize) -> Option<&[u8]> {
+		None
+	}
+
+	/// Determine whether an address can be served in the current processor mode.
+	///
+	/// This will fire address sxceptions if access violations occur.
+	#[inline]
+	pub fn access_virtual_address(&mut self, v_addr: u32, load: bool) -> bool {
+		let out = match v_addr as usize {
+			USEG_START..KSEG0_START => true,
+			SSEG_START..KSEG3_START => self.get_current_privilege() != PrivilegeLevel::User,
+			_ => self.get_current_privilege().is_kernel(),
+		};
+
+		if !out {
+			if load {
+				self.throw_l1_exception(L1Exception::AddressErrorFetchLoad(v_addr));
+			} else {
+				self.throw_l1_exception(L1Exception::AddressErrorStore(v_addr));
+			}
+		}
+
+		out
+	}
+
 	/// Execute one cycle of the EE Core CPU.
 	///
 	/// This attempts to fetch and issue two instructions from memory.
