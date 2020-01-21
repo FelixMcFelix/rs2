@@ -20,6 +20,7 @@ pub enum MipsOpcode {
 	LUI     = 0b00_1111,
 	OrI     = 0b00_1101,
 	SLTI    = 0b00_1010,
+	SW      = 0b10_1011,
 }
 }
 

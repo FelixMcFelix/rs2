@@ -27,12 +27,14 @@ fn main() {
 		};
 
 		if f.read_to_end(&mut prog_buf).is_ok() {
+			ee_core.set_bios(prog_buf);
+
 			let stdin = io::stdin();
 			let mut s = String::new();
 			println!("Stepped execution: press enter to cycle.");
 			loop {
 				let _ = stdin.read_line(&mut s);
-				ee_core.cycle(&prog_buf);
+				ee_core.cycle();
 			}
 		}
 	}

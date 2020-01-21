@@ -1,3 +1,4 @@
+#[derive(PartialEq)]
 pub enum PrivilegeLevel {
 	Kernel(ExceptionLevel),
 	Supervisor,
@@ -23,6 +24,7 @@ impl PrivilegeLevel {
 	}
 }
 
+#[derive(PartialEq)]
 pub enum ExceptionLevel {
 	NoException,
 	Level1,

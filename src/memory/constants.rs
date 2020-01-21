@@ -9,6 +9,8 @@ pub const USEG_START: usize = 0x0000_0000;
 
 pub const SPRAM_START: usize = 0x7000_0000;
 
+pub const USEG_END: usize = KSEG0_START - 1;
+
 /// Starting virtual address of kseg0.
 ///
 /// Kseg0 is the region from `KSEG0_START` to `KSEG1_START - 1`.
@@ -18,6 +20,8 @@ pub const SPRAM_START: usize = 0x7000_0000;
 ///
 /// Kernel access only. Caching controlled by k0 field of Config register (COP0?).
 pub const KSEG0_START: usize = 0x8000_0000;
+
+pub const KSEG0_END: usize = KSEG1_START - 1;
 
 /// Starting virtual address of kseg1.
 ///
@@ -29,6 +33,8 @@ pub const KSEG0_START: usize = 0x8000_0000;
 /// Kernel access only. Caching disabled.
 pub const KSEG1_START: usize = 0xA000_0000;
 
+pub const KSEG1_END: usize = SSEG_START - 1;
+
 /// Starting virtual address of ksseg/sseg.
 ///
 /// Sseg is the region from `SSEG1_START` to `KSEG3_START - 1`,
@@ -38,6 +44,8 @@ pub const KSEG1_START: usize = 0xA000_0000;
 /// Supervisor/kernel access.
 pub const SSEG_START: usize = 0xC000_0000;
 
+pub const SSEG_END: usize = KSEG3_START - 1;
+
 /// Starting virtual address of kseg3.
 ///
 /// Kseg3 is the region from `KSEG3_START` to `0xFFFF_FFFF`,
@@ -46,6 +54,8 @@ pub const SSEG_START: usize = 0xC000_0000;
 ///
 /// Kernel access only.
 pub const KSEG3_START: usize = 0xE000_0000;
+
+pub const KSEG3_END: usize = 0xFFFF_FFFF;
 
 // These DMA addresses are courtesy of https://psi-rockin.github.io/ps2tek/.
 pub const IO_REGISTERS_PHYSICAL: usize = 0x1000_0000;

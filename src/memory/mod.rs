@@ -23,13 +23,27 @@ impl Memory {
 	pub fn read(&self, addr: usize, size: usize) -> &[u8] {
 		match addr {
 			0..=IO_REGISTERS_PHYSICAL => {
-				&self.data[addr..addr+size]
+				&self.data[addr..addr+PHYSICAL_MEMORY_SIZE]
 			},
 			BIOS_PHYSICAL..=0xFFFF_FFFF => {
 				let bios_addr = addr - BIOS_PHYSICAL;
 				&self.bios[bios_addr..bios_addr + size]
 			}
-			_ => &self.data[..]
+			_ => &self.data[..],
 		}
 	}
+
+	// /// Read a slice of the desired size from the specified physical address.
+	// pub fn write(&mut self, addr: usize, size: usize) -> &[u8] {
+	// 	match addr {
+	// 		0..=IO_REGISTERS_PHYSICAL => {
+	// 			&self.data[addr..addr+PHYSICAL_MEMORY_SIZE]
+	// 		},
+	// 		BIOS_PHYSICAL..=0xFFFF_FFFF => {
+	// 			let bios_addr = addr - BIOS_PHYSICAL;
+	// 			&self.bios[bios_addr..bios_addr + size]
+	// 		}
+	// 		_ => &self.data[..],
+	// 	}
+	// }
 }

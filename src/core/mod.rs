@@ -72,6 +72,10 @@ impl EECore {
 		}
 	}
 
+	pub fn set_bios(&mut self, bios: Vec<u8>) {
+		self.memory.set_bios(bios);
+	}
+
 	// So, The EE Core has 4 pipelines (6-stage) for instructions to be executed along.
 	// Notably, the processor attempts to read and decode two instructions per clock cycle,
 	// and performs handoff at the start. If both instructions fight over the same pipeline,
@@ -265,26 +269,39 @@ impl EECore {
 		
 	}
 
-	pub fn read_memory(&mut self, v_addr: u32, size: usize) -> Option<&[u8]> {
-		None
+	pub fn read_memory(&mut self, v_addr: usize, size: usize) -> Option<&[u8]> {
+		if self.access_virtual_address(v_addr, true) {
+			let p_addr = self.translate_virtual_address(v_addr);
+			Some(self.memory.read(p_addr, size))
+		} else {
+			None
+		}
+	}
+
+	pub fn translate_virtual_address(&mut self, v_addr: usize) -> usize {
+		match v_addr {
+			KSEG0_START..=KSEG0_END => v_addr as usize - KSEG0_START,
+			KSEG1_START..=KSEG1_END => v_addr as usize - KSEG1_START,
+			_ => 0, // TODO: MMU THIS
+		}
 	}
 
 	/// Determine whether an address can be served in the current processor mode.
 	///
 	/// This will fire address sxceptions if access violations occur.
 	#[inline]
-	pub fn access_virtual_address(&mut self, v_addr: u32, load: bool) -> bool {
-		let out = match v_addr as usize {
-			USEG_START..KSEG0_START => true,
-			SSEG_START..KSEG3_START => self.get_current_privilege() != PrivilegeLevel::User,
+	pub fn access_virtual_address(&mut self, v_addr: usize, load: bool) -> bool {
+		let out = match v_addr {
+			USEG_START..=USEG_END => true,
+			SSEG_START..=SSEG_END => self.get_current_privilege() != PrivilegeLevel::User,
 			_ => self.get_current_privilege().is_kernel(),
 		};
 
 		if !out {
 			if load {
-				self.throw_l1_exception(L1Exception::AddressErrorFetchLoad(v_addr));
+				self.throw_l1_exception(L1Exception::AddressErrorFetchLoad(v_addr as u32));
 			} else {
-				self.throw_l1_exception(L1Exception::AddressErrorStore(v_addr));
+				self.throw_l1_exception(L1Exception::AddressErrorStore(v_addr as u32));
 			}
 		}
 
@@ -294,7 +311,7 @@ impl EECore {
 	/// Execute one cycle of the EE Core CPU.
 	///
 	/// This attempts to fetch and issue two instructions from memory.
-	pub fn cycle(&mut self, program: &[u8]) {
+	pub fn cycle(&mut self) {
 		// Timer interrupt.
 		// FIXME: does this happen befpre or after execution?
 		let count = self.read_cop0_direct(Register::Count as u8).wrapping_add(1);
@@ -309,36 +326,24 @@ impl EECore {
 		// FIXME: hack to avoid MMU during early BIOS testing.
 
 		// FIXME: bound to 32-bit space.
-		let pc: usize = self.pc_register.wrapping_sub(BIOS_START as u32) as usize;
-		trace!("{} <- {}",pc, self.pc_register);
-		trace!("{:032b} <- {:032b}",pc, self.pc_register);
-		let next = self.pc_register.wrapping_add(OPCODE_LENGTH_BYTES as u32).wrapping_sub(BIOS_START as u32) as usize;
+		let pc = self.pc_register as usize;
+		trace!("{}", self.pc_register);
+		let next = self.pc_register.wrapping_add(OPCODE_LENGTH_BYTES as u32) as usize;
+
+		let ops = self.read_memory(pc, 2 * OPCODE_LENGTH_BYTES).unwrap();
 
 		// FIXME: these checks will be slow/unnecessary once I move to real memory/mmu.
 		// This is some ugly dupe, in the mean time.
-		let i1 = if pc + OPCODE_LENGTH_BYTES <= program.len() {
-			LittleEndian::read_u32(&program[pc..pc+OPCODE_LENGTH_BYTES])
-		} else {
-			NOP
-		};
-		let i2 = if next + OPCODE_LENGTH_BYTES <= program.len() {
-			LittleEndian::read_u32(&program[next..next+OPCODE_LENGTH_BYTES])
-		} else {
-			NOP
-		};
+		let i1 = LittleEndian::read_u32(&ops);
+		let i2 = LittleEndian::read_u32(&ops[OPCODE_LENGTH_BYTES..]);
 
-		// IDEA: Skip I, Q, lead in with R. Pass these off to the correct physical pipelines
 		let p1 = ops::process_instruction(i1);
 		self.execute(p1);
-		// println!("{:?}, {:?}", p1.data, p1.delay);
 
 		if self.dual_issue {
 			let p2 = ops::process_instruction(i2);
 			self.execute(p2);
 		}
-		// println!("{:?}, {:?}", p2.data, p2.delay);
-
-		// FIXME: single-/dual-issue should be tied to the relevant field of COP0[Config]
 	}
 
 	pub fn execute(&mut self, instruction: OpCode) {

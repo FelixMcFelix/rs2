@@ -4,6 +4,7 @@ pub mod constants;
 mod cop0;
 pub mod instruction;
 mod load;
+mod store;
 
 pub use constants::*;
 use crate::core::{
@@ -67,6 +68,7 @@ rs2_macro::ops!([
 		(LUI, load::lui, MipsOpcode::LUI, INTEGER_SHIFT_LUI_DELAY),
 		(ORI, arithmetic::ori, MipsOpcode::OrI, INTEGER_SUM_LOGIC_DELAY),
 		(SLTI, arithmetic::slti, MipsOpcode::SLTI, INTEGER_SUM_LOGIC_DELAY),
+		(SW, store::sw, MipsOpcode::SW, INTEGER_LOAD_STORE_DELAY),
 	],
 ]);
 
