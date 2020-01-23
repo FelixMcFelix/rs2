@@ -333,3 +333,11 @@ pub fn get_writable_bitmask(index: u8) -> u32 {
 		_ => 0xff_ff_ff_ff,
 	}
 }
+
+// Note: these are the way they are because the tlb size is 48.
+const RANDOM_MAX: u32 = 47;
+const RANDOM_MOD: u32 = RANDOM_MAX + 1;
+
+pub fn increment_random(random: u32) -> u32 {
+	(random + 1) % RANDOM_MOD
+}

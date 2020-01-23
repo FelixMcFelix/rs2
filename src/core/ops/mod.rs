@@ -58,6 +58,10 @@ rs2_macro::ops!([
 		(MipsOpcode::Cop1, "COP1", Cop1Function::decode, [
 			// N/A
 		]),
+		(MipsOpcode::RegImm, "REGIMM", RegImmFunction::decode, [
+			(BGEZ, branch::bgez, RegImmFunction::BGEZ, INTEGER_BRANCH_JUMP_DELAY),
+			(BLTZ, branch::bltz, RegImmFunction::BLTZ, INTEGER_BRANCH_JUMP_DELAY),
+		]),
 	],
 	[
 		(ADDI, arithmetic::addi, MipsOpcode::AddI, INTEGER_SUM_LOGIC_DELAY),

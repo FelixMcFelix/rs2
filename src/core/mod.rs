@@ -6,6 +6,7 @@ pub mod ops;
 pub mod pipeline;
 #[cfg(test)]
 mod tests;
+pub mod tlb;
 
 use byteorder::{
 	LittleEndian,
@@ -256,7 +257,7 @@ impl EECore {
 	fn update_config(&mut self, value: u32) {
 		let config = Config::from_bits_truncate(value);
 
-		self.dual_issue = config.contains(Config::ENABLE_DUAL_ISSUE);
+		self.dual_issue = false;//config.contains(Config::ENABLE_DUAL_ISSUE);
 	}
 
 	pub fn init_as_ee(&mut self) {
@@ -271,18 +272,41 @@ impl EECore {
 
 	pub fn read_memory(&mut self, v_addr: usize, size: usize) -> Option<&[u8]> {
 		if self.access_virtual_address(v_addr, true) {
-			let p_addr = self.translate_virtual_address(v_addr);
+			let p_addr = self.translate_virtual_address(v_addr, true);
 			Some(self.memory.read(p_addr, size))
 		} else {
 			None
 		}
 	}
 
-	pub fn translate_virtual_address(&mut self, v_addr: usize) -> usize {
+	pub fn read_memory_mut(&mut self, v_addr: usize, size: usize) -> Option<&mut [u8]> {
+		if self.access_virtual_address(v_addr, false) {
+			let p_addr = self.translate_virtual_address(v_addr, false);
+			Some(self.memory.read_mut(p_addr, size))
+		} else {
+			None
+		}
+	}
+
+	pub fn write_memory(&mut self, v_addr: usize, data: &[u8]) {
+		if self.access_virtual_address(v_addr, false) {
+			let p_addr = self.translate_virtual_address(v_addr, false);
+			self.memory.write(p_addr, data);
+		}
+	}
+
+	pub fn translate_virtual_address(&mut self, v_addr: usize, load: bool) -> usize {
 		match v_addr {
 			KSEG0_START..=KSEG0_END => v_addr as usize - KSEG0_START,
 			KSEG1_START..=KSEG1_END => v_addr as usize - KSEG1_START,
-			_ => 0, // TODO: MMU THIS
+			_ => {
+				// if load {
+				// 	self.throw_l1_exception(L1Exception::TlbFetchLoadRefill(v_addr as u32));
+				// } else {
+				// 	self.throw_l1_exception(L1Exception::TlbStoreRefill(v_addr as u32));
+				// }
+				0
+			}, // TODO: MMU THIS
 		}
 	}
 
@@ -327,7 +351,7 @@ impl EECore {
 
 		// FIXME: bound to 32-bit space.
 		let pc = self.pc_register as usize;
-		trace!("{}", self.pc_register);
+		trace!("PC: {:08x}", self.pc_register);
 		let next = self.pc_register.wrapping_add(OPCODE_LENGTH_BYTES as u32) as usize;
 
 		let ops = self.read_memory(pc, 2 * OPCODE_LENGTH_BYTES).unwrap();

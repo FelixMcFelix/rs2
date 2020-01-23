@@ -25,6 +25,18 @@ fn inner_bne(cpu: &mut EECore, data: &BranchOpCode) -> BranchResult {
 	}
 }
 
+pub fn bgez(cpu: &mut EECore, data: &OpCode) {
+	// If GPR[rs]>=0, then apply offset to current PC as in BNE.
+	let cond = cpu.read_register(data.ri_get_source()) as i64 >= 0;
+	cpu.branch(data, inner_bne as BranchAction, cond as u32);
+}
+
+pub fn bltz(cpu: &mut EECore, data: &OpCode) {
+	// If GPR[rs]<0, then apply offset to current PC as in BNE.
+	let cond = (cpu.read_register(data.ri_get_source()) as i64) < 0;
+	cpu.branch(data, inner_bne as BranchAction, cond as u32);
+}
+
 pub fn j(cpu: &mut EECore, data: &OpCode) {
 	cpu.branch(data, inner_j as BranchAction, 0);
 }
@@ -138,6 +150,21 @@ mod tests {
 
 		assert_eq!(staying_ee.pc_register, (BIOS_START as u32) + 8);
 		assert_eq!(jumping_ee.pc_register, jump_target);
+	}
+
+	#[test]
+	fn bne_negative_offset() {
+		unimplemented!()
+	}
+
+	#[test]
+	fn basic_bgez() {
+		unimplemented!()
+	}
+
+	#[test]
+	fn basic_bltz() {
+		unimplemented!()
 	}
 
 	#[test]

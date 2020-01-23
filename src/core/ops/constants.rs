@@ -11,6 +11,7 @@ pub enum MipsOpcode {
 	Cache   = 0b10_1111,
 	Cop0    = 0b01_0000,
 	Cop1    = 0b01_0001,
+	RegImm  = 0b00_0001,
 
 	AddI    = 0b00_1000,
 	AddIU   = 0b00_1001,
@@ -145,6 +146,23 @@ impl CacheFunction {
 	#[inline(always)]
 	pub fn decode(instruction: u32) -> Option<Self> {
 		let raw_func = instruction.ri_get_target();
+		Self::from_u8(raw_func)
+	}
+}
+
+enum_from_primitive!{
+#[derive(Debug, PartialEq)]
+pub enum RegImmFunction {
+	BGEZ   = 0b0_0001,
+	BLTZ   = 0b0_0000,
+}
+}
+
+impl RegImmFunction {
+	#[inline(always)]
+	pub fn decode(instruction: u32) -> Option<Self> {
+		let raw_func = instruction.ri_get_target();
+		trace!("RI {:05b}", raw_func);
 		Self::from_u8(raw_func)
 	}
 }
