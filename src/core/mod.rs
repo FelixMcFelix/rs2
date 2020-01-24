@@ -6,19 +6,13 @@ pub mod ops;
 pub mod pipeline;
 #[cfg(test)]
 mod tests;
-pub mod tlb;
 
 use byteorder::{
 	LittleEndian,
 	ByteOrder,
 };
 use constants::*;
-use cop0::{
-	Cause,
-	Config,
-	Register,
-	Status,
-};
+use cop0::*;
 use enum_primitive::*;
 use exceptions::{
 	L1Exception,
@@ -29,6 +23,7 @@ use ops::NOP;
 use pipeline::*;
 use super::memory::{
 	constants::*,
+	mmu::Mmu,
 	Memory,
 };
 
@@ -261,6 +256,8 @@ impl EECore {
 	}
 
 	pub fn init_as_ee(&mut self) {
+		self.write_cop0_direct(Register::Random as u8, RANDOM_DEFAULT);
+		self.write_cop0_direct(Register::Wired as u8, WIRED_DEFAULT);
 		self.write_cop0_direct(Register::PRId as u8, EE_PRID);
 		self.write_cop0_direct(Register::Status as u8, Status::default().bits());
 		self.write_cop0_direct(Register::Config as u8, Config::default().bits());
