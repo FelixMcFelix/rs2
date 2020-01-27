@@ -49,6 +49,20 @@ pub fn mtc0(cpu: &mut EECore, data: &OpCode) {
 	cpu.write_cop0(data.r_get_destination(), v);
 }
 
+pub fn tlbwi(cpu: &mut EECore, data: &OpCode) {
+	if !cop0_usable(cpu) {
+		return;
+	}
+
+	// read the required registers, then update the mmu.
+	cpu.mmu.write_index(
+		cpu.read_cop0_direct(Register::PageMask as u8),
+		cpu.read_cop0_direct(Register::EntryHi as u8),
+		cpu.read_cop0_direct(Register::EntryLo0 as u8),
+		cpu.read_cop0_direct(Register::EntryLo1 as u8),
+	);
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -86,6 +100,11 @@ mod tests {
 
 	#[test]
 	fn basic_mtc0() {
+		unimplemented!()
+	}
+
+	#[test]
+	fn basic_tlbwi() {
 		unimplemented!()
 	}
 

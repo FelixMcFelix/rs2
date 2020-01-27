@@ -54,6 +54,7 @@ rs2_macro::ops!([
 			(MFC0, cop0::mfc0, Cop0Function::MFC0, INTEGER_LOAD_STORE_DELAY),
 			(MTBPC, cop0::mtc0, Cop0Function::MTBPC, INTEGER_LOAD_STORE_DELAY),
 			(MTC0, cop0::mtc0, Cop0Function::MTC0, INTEGER_LOAD_STORE_DELAY),
+			(TLBWI, cop0::tlbwi, Cop0Function::TlbWI, INTEGER_LOAD_STORE_DELAY),
 		]),
 		(MipsOpcode::Cop1, "COP1", Cop1Function::decode, [
 			// N/A
@@ -71,6 +72,7 @@ rs2_macro::ops!([
 		(JAL, branch::jal, MipsOpcode::JaL, INTEGER_BRANCH_JUMP_DELAY),
 		(LUI, load::lui, MipsOpcode::LUI, INTEGER_SHIFT_LUI_DELAY),
 		(ORI, arithmetic::ori, MipsOpcode::OrI, INTEGER_SUM_LOGIC_DELAY),
+		(SD, store::sd, MipsOpcode::SD, INTEGER_LOAD_STORE_DELAY),
 		(SLTI, arithmetic::slti, MipsOpcode::SLTI, INTEGER_SUM_LOGIC_DELAY),
 		(SW, store::sw, MipsOpcode::SW, INTEGER_LOAD_STORE_DELAY),
 	],

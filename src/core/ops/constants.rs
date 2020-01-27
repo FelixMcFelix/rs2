@@ -20,6 +20,7 @@ pub enum MipsOpcode {
 	JaL     = 0b00_0011,
 	LUI     = 0b00_1111,
 	OrI     = 0b00_1101,
+	SD      = 0b11_1111,
 	SLTI    = 0b00_1010,
 	SW      = 0b10_1011,
 }
@@ -53,12 +54,14 @@ pub enum Cop0Function {
 	MFC0,
 	MTBPC,
 	MTC0,
+	TlbWI,
 }
 
-const MF0: u8 = 0b0_0000;
-const C0:  u8 = 0b1_0000;
-const BC0: u8 = 0b0_1000;
-const MT0: u8 = 0b0_0100;
+const MF0: u8   = 0b0_0000;
+const C0:  u8   = 0b1_0000;
+const BC0: u8   = 0b0_1000;
+const MT0: u8   = 0b0_0100;
+const TBLWI: u8 = 0b0_0010;
 
 const LAST_11: u32 = 0b0111_1111_1111;
 
@@ -80,7 +83,10 @@ impl Cop0Function {
 			},
 			C0 => {
 				trace!("C0");
-				None
+				match instruction.r_get_function() {
+					TLBWI => Some(Cop0Function::TlbWI),
+					_ => None,
+				}
 			},
 			BC0 => {
 				trace!("BC0");

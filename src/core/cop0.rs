@@ -345,3 +345,85 @@ pub const RANDOM_MOD: u32 = RANDOM_MAX + 1;
 pub fn increment_random(random: u32) -> u32 {
 	(random + 1) % RANDOM_MOD
 }
+
+pub trait EntryLo {
+	fn is_scratchpad(self) -> bool;
+	fn get_pfn(self) -> u32;
+	fn get_cache_mode(self) -> u8;
+	fn is_dirty(self) -> bool;
+	fn is_valid(self) -> bool;
+	fn is_global(self) -> bool;
+}
+
+impl EntryLo for u32 {
+	fn is_scratchpad(self) -> bool {
+		(self & 0x8000_0000) == 0
+	}
+
+	fn get_pfn(self) -> u32 {
+		(self & 0x03ff_ffff) >> 6
+	}
+
+	fn get_cache_mode(self) -> u8 {
+		((self & 0x0000_003f) >> 3) as u8
+	}
+
+	fn is_dirty(self) -> bool {
+		(self & 0b100) == 0
+	}
+
+	fn is_valid(self) -> bool {
+		(self & 0b010) == 0
+	}
+
+	fn is_global(self) -> bool {
+		(self & 0b001) == 0
+	}
+}
+
+pub fn entry_lo_from_parts(scratchpad: bool, pfn: u32, cache_mode: u8, dirty: bool, valid: bool, global: bool) -> u32 {
+	((scratchpad as u32) << 31)
+	| (pfn << 6)
+	| ((cache_mode as u32) << 3)
+	| ((dirty as u32) << 2)
+	| ((valid as u32) << 1)
+	| (global as u32)
+}
+
+pub trait Context {
+	fn get_pte_base(self) -> u32;
+	fn get_vpn2(self) -> u32;
+}
+
+impl Context for u32 {
+	fn get_pte_base(self) -> u32 {
+		self >> 23
+	}
+
+	fn get_vpn2(self) -> u32 {
+		(self & 0x003f_ffff) >> 4
+	}
+}
+
+pub fn context_from_parts(pte_base: u32, vpn2: u32) -> u32 {
+	(pte_base << 23) | (vpn2 << 4)
+}
+
+pub trait EntryHi {
+	fn get_asid(self) -> u8;
+	fn get_vpn2(self) -> u32;
+}
+
+impl EntryHi for u32 {
+	fn get_asid(self) -> u8 {
+		self as u8
+	}
+
+	fn get_vpn2(self) -> u32 {
+		self >> 13
+	}
+}
+
+pub fn entry_hi_from_parts(vpn2: u32, asid: u8) -> u32 {
+	(vpn2 << 13) | (asid as u32)
+}

@@ -23,7 +23,10 @@ use ops::NOP;
 use pipeline::*;
 use super::memory::{
 	constants::*,
-	mmu::Mmu,
+	mmu::{
+		Mmu,
+		MmuAddress,
+	},
 	Memory,
 };
 
@@ -36,6 +39,7 @@ pub struct EECore {
 	pub pc_register: u32,
 
 	pub memory: Memory,
+	pub mmu: Mmu,
 
 	/// Code held by a Branch-type instruction.
 	///
@@ -47,6 +51,8 @@ pub struct EECore {
 
 	/// Whether dual issue of instructions is enabled or disabled.
 	pub dual_issue: bool,
+
+	excepted_this_cycle: bool,
 }
 
 impl EECore {
@@ -61,10 +67,13 @@ impl EECore {
 			pc_register: BIOS_START as u32,
 
 			memory: Memory::new(vec![0;4]),
+			mmu: Default::default(),
 
 			branch_delay_slot_active: None,
 
 			dual_issue: false,
+
+			excepted_this_cycle: false,
 		}
 	}
 
@@ -245,6 +254,8 @@ impl EECore {
 
 		match Register::from_u8(index) {
 			Some(Register::Config) => self.update_config(value),
+			Some(Register::Index) => self.mmu.index = value as u8,
+			Some(Register::PageMask) => self.mmu.page_mask = value,
 			_ => {},
 		}
 	}
@@ -267,43 +278,44 @@ impl EECore {
 		
 	}
 
-	pub fn read_memory(&mut self, v_addr: usize, size: usize) -> Option<&[u8]> {
+	pub fn read_memory(&mut self, v_addr: u32, size: usize) -> Option<&[u8]> {
 		if self.access_virtual_address(v_addr, true) {
 			let p_addr = self.translate_virtual_address(v_addr, true);
-			Some(self.memory.read(p_addr, size))
+			p_addr.map(move |real_p| self.memory.read(real_p, size))
 		} else {
 			None
 		}
 	}
 
-	pub fn read_memory_mut(&mut self, v_addr: usize, size: usize) -> Option<&mut [u8]> {
+	pub fn read_memory_mut(&mut self, v_addr: u32, size: usize) -> Option<&mut [u8]> {
 		if self.access_virtual_address(v_addr, false) {
 			let p_addr = self.translate_virtual_address(v_addr, false);
-			Some(self.memory.read_mut(p_addr, size))
+			p_addr.map(move |real_p| self.memory.read_mut(real_p, size))
 		} else {
 			None
 		}
 	}
 
-	pub fn write_memory(&mut self, v_addr: usize, data: &[u8]) {
+	pub fn write_memory(&mut self, v_addr: u32, data: &[u8]) {
 		if self.access_virtual_address(v_addr, false) {
 			let p_addr = self.translate_virtual_address(v_addr, false);
-			self.memory.write(p_addr, data);
+			if let Some(p_addr) = p_addr {
+				self.memory.write(p_addr, data);
+			}
 		}
 	}
 
-	pub fn translate_virtual_address(&mut self, v_addr: usize, load: bool) -> usize {
+	pub fn translate_virtual_address(&mut self, v_addr: u32, load: bool) -> Option<u32> {
 		match v_addr {
-			KSEG0_START..=KSEG0_END => v_addr as usize - KSEG0_START,
-			KSEG1_START..=KSEG1_END => v_addr as usize - KSEG1_START,
-			_ => {
-				// if load {
-				// 	self.throw_l1_exception(L1Exception::TlbFetchLoadRefill(v_addr as u32));
-				// } else {
-				// 	self.throw_l1_exception(L1Exception::TlbStoreRefill(v_addr as u32));
-				// }
-				0
-			}, // TODO: MMU THIS
+			KSEG0_START..=KSEG0_END => Some(v_addr - (KSEG0_START as u32)),
+			KSEG1_START..=KSEG1_END => Some(v_addr - (KSEG1_START as u32)),
+			_ => match self.mmu.translate_address(v_addr, load) {
+				MmuAddress::Address(a) => Some(a),
+				MmuAddress::Exception(e) => {
+					self.throw_l1_exception(e);
+					None
+				}
+			},
 		}
 	}
 
@@ -311,7 +323,7 @@ impl EECore {
 	///
 	/// This will fire address sxceptions if access violations occur.
 	#[inline]
-	pub fn access_virtual_address(&mut self, v_addr: usize, load: bool) -> bool {
+	pub fn access_virtual_address(&mut self, v_addr: u32, load: bool) -> bool {
 		let out = match v_addr {
 			USEG_START..=USEG_END => true,
 			SSEG_START..=SSEG_END => self.get_current_privilege() != PrivilegeLevel::User,
@@ -347,9 +359,9 @@ impl EECore {
 		// FIXME: hack to avoid MMU during early BIOS testing.
 
 		// FIXME: bound to 32-bit space.
-		let pc = self.pc_register as usize;
+		let pc = self.pc_register;
 		trace!("PC: {:08x}", self.pc_register);
-		let next = self.pc_register.wrapping_add(OPCODE_LENGTH_BYTES as u32) as usize;
+		let next = self.pc_register.wrapping_add(OPCODE_LENGTH_BYTES as u32);
 
 		let ops = self.read_memory(pc, 2 * OPCODE_LENGTH_BYTES).unwrap();
 
@@ -365,6 +377,8 @@ impl EECore {
 			let p2 = ops::process_instruction(i2);
 			self.execute(p2);
 		}
+
+		self.excepted_this_cycle = false;
 	}
 
 	pub fn execute(&mut self, instruction: OpCode) {
@@ -377,7 +391,7 @@ impl EECore {
 		if !branch_result.contains(BranchResult::NULLIFIED) {
 			(instruction.action)(self, &instruction);
 		}
-		if !branch_result.contains(BranchResult::BRANCHED){
+		if !(branch_result.contains(BranchResult::BRANCHED) || self.excepted_this_cycle) {
 			self.pc_register = self.pc_register.wrapping_add(OPCODE_LENGTH_BYTES as u32);
 		}
 	}
@@ -387,6 +401,8 @@ impl EECore {
 	}
 
 	pub fn throw_l1_exception(&mut self, ex: L1Exception) {
+		self.excepted_this_cycle = true;
+
 		trace!("L1 Exception: {:?}", ex);
 
 		// Switch to kernel mode (EXL).
@@ -428,6 +444,8 @@ impl EECore {
 	}
 
 	pub fn throw_l2_exception(&mut self, ex: L2Exception) {
+		self.excepted_this_cycle = true;
+
 		trace!("L2 Exception: {:?}", ex);
 
 		let status = self.read_cop0_direct(Register::Status as u8);

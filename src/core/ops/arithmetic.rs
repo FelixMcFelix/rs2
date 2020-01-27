@@ -77,8 +77,8 @@ pub fn mult(cpu: &mut EECore, data: &OpCode) {
 }
 
 pub fn ori(cpu: &mut EECore, data: &OpCode) {
-	// rt <- rs | ext(imm)
-	let extd_imm = (data.i_get_immediate() as i16) as u64;
+	// rt <- rs | zero-ext(imm)
+	let extd_imm = data.i_get_immediate() as u64;
 	cpu.write_register(
 		data.ri_get_target(),
 		cpu.read_register(data.ri_get_source()) | extd_imm,
@@ -319,6 +319,12 @@ mod tests {
 		test_ee.execute(ops::process_instruction(instruction));
 
 		assert_eq!(test_ee.read_register(2), in_1 | extended_in_2 as u64);
+	}
+
+	#[test]
+	fn ori_not_sign_extended() {
+		// Contrary to the official documentation...
+		unimplemented!()
 	}
 
 	#[test]
