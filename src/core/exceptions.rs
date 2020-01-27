@@ -44,8 +44,8 @@ pub enum L1Exception {
 	TlbStoreInvalid(u32), // 3
 	AddressErrorFetchLoad(u32),
 	AddressErrorStore(u32),
-	BusErrorFetch,
-	BusErrorLoadStore,
+	BusErrorFetch(u32),
+	BusErrorLoadStore(u32),
 	Systemcall,
 	Break,
 	ReservedInstruction,
@@ -67,8 +67,8 @@ impl From<L1Exception> for u8 {
 			TlbStoreInvalid(_) => 3,
 			AddressErrorFetchLoad(_) => 4,
 			AddressErrorStore(_) => 5,
-			BusErrorFetch => 6,
-			BusErrorLoadStore => 7,
+			BusErrorFetch(_) => 6,
+			BusErrorLoadStore(_) => 7,
 			Systemcall => 8,
 			Break => 9,
 			ReservedInstruction => 10,
@@ -113,21 +113,17 @@ impl L1Exception {
 				let interrupt_bits = 1 << (code + 8);
 				cause.insert(Cause::from_bits_truncate(interrupt_bits));
 			},
-			TlbModified(addr) => {
-				bad_v_addr(cpu, addr);
-				fill_ctx_entryhi(cpu, addr);
-			},
+			TlbModified(addr) |
 			TlbFetchLoadRefill(addr) | TlbStoreRefill(addr) |
 			TlbFetchLoadInvalid(addr) | TlbStoreInvalid(addr) => {
 				bad_v_addr(cpu, addr);
 				fill_ctx_entryhi(cpu, addr);
-
-				// TODO
-				// Store new tlb entry/index in "Random" Cop0 register.
-				// unimplemented!()
 			},
 			AddressErrorStore(addr) | AddressErrorFetchLoad(addr) => {
 				bad_v_addr(cpu, addr);
+			},
+			BusErrorLoadStore(addr) | BusErrorFetch(addr) => {
+				bad_p_addr(cpu, addr);
 			},
 			CoprocessorUnusable(cop_code) => {
 				// Sets Cause::COPROCESSOR_NUMBER.
@@ -142,6 +138,11 @@ impl L1Exception {
 #[inline]
 fn bad_v_addr(cpu: &mut EECore, addr: u32) {
 	cpu.write_cop0(Register::BadVAddr as u8, addr);
+}
+
+#[inline]
+fn bad_p_addr(cpu: &mut EECore, addr: u32) {
+	cpu.write_cop0(Register::BadPAddr as u8, addr);
 }
 
 #[inline]

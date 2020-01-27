@@ -24,6 +24,7 @@ use pipeline::*;
 use super::memory::{
 	constants::*,
 	mmu::{
+		self,
 		Mmu,
 		MmuAddress,
 	},
@@ -256,6 +257,10 @@ impl EECore {
 			Some(Register::Config) => self.update_config(value),
 			Some(Register::Index) => self.mmu.index = value as u8,
 			Some(Register::PageMask) => self.mmu.page_mask = value,
+			Some(Register::Wired) => {
+				self.mmu.wired = value as u8;
+				self.write_cop0_direct(Register::Random as u8, RANDOM_DEFAULT);
+			},
 			_ => {},
 		}
 	}
@@ -263,12 +268,12 @@ impl EECore {
 	fn update_config(&mut self, value: u32) {
 		let config = Config::from_bits_truncate(value);
 
-		self.dual_issue = false;//config.contains(Config::ENABLE_DUAL_ISSUE);
+		self.dual_issue = config.contains(Config::ENABLE_DUAL_ISSUE);
 	}
 
 	pub fn init_as_ee(&mut self) {
-		self.write_cop0_direct(Register::Random as u8, RANDOM_DEFAULT);
 		self.write_cop0_direct(Register::Wired as u8, WIRED_DEFAULT);
+		self.write_cop0_direct(Register::Random as u8, RANDOM_DEFAULT);
 		self.write_cop0_direct(Register::PRId as u8, EE_PRID);
 		self.write_cop0_direct(Register::Status as u8, Status::default().bits());
 		self.write_cop0_direct(Register::Config as u8, Config::default().bits());
@@ -370,15 +375,25 @@ impl EECore {
 		let i1 = LittleEndian::read_u32(&ops);
 		let i2 = LittleEndian::read_u32(&ops[OPCODE_LENGTH_BYTES..]);
 
+		// p1 may accidentally enable this...
+		let dual_issue = self.dual_issue;
+
 		let p1 = ops::process_instruction(i1);
 		self.execute(p1);
 
-		if self.dual_issue {
+		if dual_issue {
 			let p2 = ops::process_instruction(i2);
 			self.execute(p2);
 		}
 
 		self.excepted_this_cycle = false;
+
+		// Decrement TLB's random destination once per cycle w/ instruction execution.
+		// FIXME: only if one or more fired...
+		let old_random = self.read_cop0_direct(Register::Random as u8);
+		let wired = self.mmu.wired as u32;
+		let new_random = if old_random == wired {RANDOM_DEFAULT} else {old_random - 1};
+		self.write_cop0_direct(Register::Random as u8, new_random);
 	}
 
 	pub fn execute(&mut self, instruction: OpCode) {
@@ -434,6 +449,7 @@ impl EECore {
 				self.pc_register - OPCODE_LENGTH_BYTES as u32
 			};
 
+			trace!("placing 0x{:08x} in EPC", saved_addr);
 			self.write_cop0_direct(Register::EPC as u8, saved_addr);
 			self.write_cop0_direct(Register::Status as u8, status.bits());
 		}
@@ -504,6 +520,27 @@ fn format_cop0(value: u32, register: u8) -> Box<dyn core::fmt::Debug> {
 		Some(Register::Config) => Box::new(Config::from_bits_truncate(value)),
 		Some(Register::Status) => Box::new(Status::from_bits_truncate(value)),
 		Some(Register::Cause) => Box::new(Cause::from_bits_truncate(value)),
+		Some(Register::EntryHi) => Box::new(
+			format!("asid: {}, vpn2: {:05x}", value.get_asid(), EntryHi::get_vpn2(value))
+		),
+		Some(Register::Context) => Box::new(
+			format!("pte_base: {:03x}, vpn2: {:05x}", value.get_pte_base(), Context::get_vpn2(value))
+		),
+		Some(Register::EntryLo0) => Box::new(
+			format!("scratchpad: {}, pfn: {:05x}, cache_mode: {}, d: {}, v: {}, g: {}",
+				value.is_scratchpad(), value.get_pfn(), value.get_cache_mode(),
+				value.is_dirty() ,value.is_valid(), value.is_global(),
+			)
+		),
+		Some(Register::EntryLo1) => Box::new(
+			format!("pfn: {:05x}, cache_mode: {}, d: {}, v: {}, g: {}",
+				value.get_pfn(), value.get_cache_mode(),
+				value.is_dirty() ,value.is_valid(), value.is_global(),
+			)
+		),
+		Some(Register::PageMask) => Box::new(
+			format!("page_size: {}", mmu::page_mask_size(value))
+		),
 		_ => Box::new(value),
 	}
 }

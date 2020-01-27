@@ -357,7 +357,7 @@ pub trait EntryLo {
 
 impl EntryLo for u32 {
 	fn is_scratchpad(self) -> bool {
-		(self & 0x8000_0000) == 0
+		(self & 0x8000_0000) != 0
 	}
 
 	fn get_pfn(self) -> u32 {
@@ -369,15 +369,15 @@ impl EntryLo for u32 {
 	}
 
 	fn is_dirty(self) -> bool {
-		(self & 0b100) == 0
+		(self & 0b100) != 0
 	}
 
 	fn is_valid(self) -> bool {
-		(self & 0b010) == 0
+		(self & 0b010) != 0
 	}
 
 	fn is_global(self) -> bool {
-		(self & 0b001) == 0
+		(self & 0b001) != 0
 	}
 }
 

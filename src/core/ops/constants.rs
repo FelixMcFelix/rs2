@@ -57,11 +57,11 @@ pub enum Cop0Function {
 	TlbWI,
 }
 
-const MF0: u8   = 0b0_0000;
-const C0:  u8   = 0b1_0000;
-const BC0: u8   = 0b0_1000;
-const MT0: u8   = 0b0_0100;
-const TBLWI: u8 = 0b0_0010;
+const MF0:   u8 = 0b0_0000;
+const C0:    u8 = 0b1_0000;
+const BC0:   u8 = 0b0_1000;
+const MT0:   u8 = 0b0_0100;
+const TLBWI: u8 = 0b0_0010;
 
 const LAST_11: u32 = 0b0111_1111_1111;
 
@@ -83,7 +83,8 @@ impl Cop0Function {
 			},
 			C0 => {
 				trace!("C0");
-				match instruction.r_get_function() {
+				let func = instruction.r_get_function(); 
+				match func {
 					TLBWI => Some(Cop0Function::TlbWI),
 					_ => None,
 				}

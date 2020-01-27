@@ -62,6 +62,19 @@ pub fn page_mask_shift_amount(p_mask: u32) -> u32 {
 	}
 }
 
+pub fn page_mask_size(p_mask: u32) -> &'static str {
+	match p_mask {
+		PAGE_MASK_4KB => "4KB",
+		PAGE_MASK_16KB => "16KB",
+		PAGE_MASK_64KB => "64KB",
+		PAGE_MASK_256KB => "256KB",
+		PAGE_MASK_1MB => "1MB",
+		PAGE_MASK_4MB => "4MB",
+		PAGE_MASK_16MB => "16MB",
+		_ => unreachable!(),
+	}
+}
+
 impl Mmu {
 	pub fn translate_address(&self, v_addr: u32, load: bool) -> MmuAddress {
 		let vpn_shift_amount = page_mask_shift_amount(self.page_mask);
@@ -117,6 +130,8 @@ impl Mmu {
 
 	pub fn write_index(&mut self, page_mask: u32, entry_hi: u32, entry_lo0: u32, entry_lo1: u32) {
 		self.tlb.lines[self.index as usize].update(page_mask, entry_hi, entry_lo0, entry_lo1);
+
+		trace!("Put into line {}: {:?}", self.index, self.tlb.lines[self.index as usize]);
 	}
 }
 

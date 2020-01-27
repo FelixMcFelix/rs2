@@ -23,7 +23,7 @@ impl Default for Tlb {
 }
 
 /// Defined on pp 123--124.
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct TlbLine {
 	pub mask: u32,
 	pub virtual_page_number_half: u32,
@@ -35,7 +35,7 @@ pub struct TlbLine {
 	pub odd: TlbPageInfo,
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct TlbPageInfo {
 	pub page_frame_number: u32,
 	pub cache_mode: u8,
