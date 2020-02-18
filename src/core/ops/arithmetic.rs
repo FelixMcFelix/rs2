@@ -1,7 +1,10 @@
-use crate::core::{
-	exceptions::L1Exception,
-	pipeline::*,
-	EECore,
+use crate::{
+	core::{
+		exceptions::L1Exception,
+		pipeline::*,
+		EECore,
+	},
+	utils::*,
 };
 use super::instruction::Instruction;
 
@@ -15,7 +18,7 @@ pub fn add(cpu: &mut EECore, data: &OpCode) {
 	if let Some(sum) = lhs.checked_add(rhs) {
 		cpu.write_register(
 			data.r_get_destination(),
-			sum as u64,
+			sum.s_ext(),
 		);	
 	} else {
 		cpu.throw_l1_exception(L1Exception::Overflow);
@@ -24,7 +27,7 @@ pub fn add(cpu: &mut EECore, data: &OpCode) {
 
 pub fn addi(cpu: &mut EECore, data: &OpCode) {
 	let lhs = cpu.read_register(data.ri_get_source()) as i32;
-	let rhs = i32::from(data.i_get_immediate() as i16);
+	let rhs = i32::from(data.i_get_immediate_signed());
 
 	if let Some(sum) = lhs.checked_add(rhs) {
 		cpu.write_register(
@@ -37,22 +40,26 @@ pub fn addi(cpu: &mut EECore, data: &OpCode) {
 }
 
 pub fn addiu(cpu: &mut EECore, data: &OpCode) {
-	let lhs = cpu.read_register(data.ri_get_source()) as i32;
-	let rhs = i32::from(data.i_get_immediate() as i16);
+	let lhs = cpu.read_register(data.ri_get_source()) as u32;
+	let rhs = data.i_get_immediate_signed().s_ext();
+
+	println!("{:08x} +u {:08x}: {:08x}", lhs, rhs, lhs.wrapping_add(rhs).s_ext());
 
 	cpu.write_register(
 		data.ri_get_target(),
-		lhs.wrapping_add(rhs) as u64,
+		lhs.wrapping_add(rhs).s_ext(),
 	);
+
+	println!("{:08x}", cpu.read_register(data.ri_get_target()));
 }
 
 pub fn addu(cpu: &mut EECore, data: &OpCode) {
-	let lhs = cpu.read_register(data.ri_get_source()) as i32;
-	let rhs = cpu.read_register(data.ri_get_target()) as i32;
+	let lhs = cpu.read_register(data.ri_get_source()) as u32;
+	let rhs = cpu.read_register(data.ri_get_target()) as u32;
 
 	cpu.write_register(
 		data.r_get_destination(),
-		lhs.wrapping_add(rhs) as u64,
+		lhs.wrapping_add(rhs).s_ext(),
 	);
 }
 
@@ -282,6 +289,24 @@ mod tests {
 	}
 
 	#[test]
+	fn addiu_form_address() {
+		// Lui + ORI + ADDIU ahould define an address together.
+		let base_address_upper = 0x7000;
+		let base_address_lower = 0x3ff0;
+		let address_offset     = 0xffd0;
+
+		let mut test_ee = EECore::new();
+
+		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
+			ops::build_op_immediate(MipsOpcode::LUI, 0, 1, base_address_upper),
+			ops::build_op_immediate(MipsOpcode::OrI, 1, 1, base_address_lower),
+			ops::build_op_immediate(MipsOpcode::AddIU, 1, 2, address_offset),
+		]));
+
+		assert_eq!(test_ee.read_register(1) as i64, 0x7000_3fc0);
+	}
+
+	#[test]
 	fn basic_and() {
 		// Need to ensure this works on full 64-bit width.
 		let in_1 = 0b1000_0000_0000_0000_0000_0000_0100_1111_0010_0000_0000_0010_0000_0000_1111_0001;
@@ -306,10 +331,11 @@ mod tests {
 	#[test]
 	fn basic_ori() {
 		// Need to ensure this works on full 64-bit width.
+		// NOTE: ORI zero-extends.
 		let in_1 = 0b1000_0000_0000_0000_0000_0000_0100_1111_0010_0000_0000_0010_0000_0000_1111_0001;
 		let in_2 = 0b1111_0000_0110_1000;
 
-		let extended_in_2 = (in_2 as i16) as u64;
+		let extended_in_2: u64 = in_2.z_ext();
 
 		let mut test_ee = EECore::new();
 		test_ee.write_register(1, in_1);
@@ -318,13 +344,24 @@ mod tests {
 
 		test_ee.execute(ops::process_instruction(instruction));
 
-		assert_eq!(test_ee.read_register(2), in_1 | extended_in_2 as u64);
+		assert_eq!(test_ee.read_register(2), in_1 | extended_in_2);
 	}
 
 	#[test]
 	fn ori_not_sign_extended() {
 		// Contrary to the official documentation...
-		unimplemented!()
+		// This can lead to some particularly bad address loads.
+		let base_address_upper = 0x7000;
+		let base_address_lower = 0xfff0;
+
+		let mut test_ee = EECore::new();
+
+		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
+			ops::build_op_immediate(MipsOpcode::LUI, 0, 1, base_address_upper),
+			ops::build_op_immediate(MipsOpcode::OrI, 1, 1, base_address_lower),
+		]));
+
+		assert_eq!(test_ee.read_register(1) as i64, 0x7000_fff0);
 	}
 
 	#[test]

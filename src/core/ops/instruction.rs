@@ -15,6 +15,7 @@ pub trait Instruction {
 	fn r_get_function(&self) -> u8;
 
 	fn i_get_immediate(&self) -> u16;
+	fn i_get_immediate_signed(&self) -> i16;
 
 	fn j_get_jump(&self) -> u32;
 
@@ -65,6 +66,11 @@ impl Instruction for u32 {
 	#[inline]
 	fn i_get_immediate(&self) -> u16 {
 		(self & 0xFF_FF) as u16
+	}
+
+	#[inline]
+	fn i_get_immediate_signed(&self) -> i16 {
+		self.i_get_immediate() as i16
 	}
 
 	#[inline]

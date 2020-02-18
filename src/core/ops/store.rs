@@ -25,10 +25,11 @@ pub fn sw(cpu: &mut EECore, data: &OpCode) {
 pub fn sd(cpu: &mut EECore, data: &OpCode) {
 	// mem[GPR[rs] + signed(imm)] <- (GPR[rt] as 64)
 	let to_store = cpu.read_register(data.ri_get_target());
-	let v_addr = cpu.read_register(data.ri_get_source()) + ((data.i_get_immediate() as i16) as u64);
-	trace!("I want to store {} in v_addr {:08x}",
+	let v_addr = cpu.read_register(data.ri_get_source()) + (data.i_get_immediate_signed() as u64);
+	trace!("I want to store {} in v_addr {:08x} + {:08x}",
 		to_store,
-		v_addr,
+		cpu.read_register(data.ri_get_source()),
+		data.i_get_immediate_signed(),
 	);
 
 	if let Some(loc) = cpu.read_memory_mut(v_addr as u32, 8) {

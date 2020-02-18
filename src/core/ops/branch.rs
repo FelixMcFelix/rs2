@@ -1,8 +1,11 @@
-use crate::core::{
-	constants::*,
-	exceptions::L1Exception,
-	pipeline::*,
-	EECore,
+use crate::{
+	core::{
+		constants::*,
+		exceptions::L1Exception,
+		pipeline::*,
+		EECore,
+	},
+	utils::*,
 };
 use super::instruction::Instruction;
 
@@ -109,16 +112,12 @@ mod tests {
 		let jump_offset = 0x12_34_56;
 		let jump_target = (BIOS_START as u32) | (jump_offset << 2);
 
-		let program = vec![
-			NOP,
-			ops::build_op_jump(MipsOpcode::J, jump_offset),
-		];
-		let mut program_bytes = vec![0u8; 4 * program.len()];
-		LittleEndian::write_u32_into(&program[..], &mut program_bytes[..]);
-
 		let mut test_ee = EECore::new();
 
-		test_ee.cycle(&program_bytes[..]);
+		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
+			NOP,
+			ops::build_op_jump(MipsOpcode::J, jump_offset),
+		]));
 
 		assert_ne!(test_ee.pc_register, jump_target);
 	}
@@ -130,23 +129,21 @@ mod tests {
 		let jump_offset: u16 = 0x12_34;
 		let jump_target = (BIOS_START as u32) + 4 + ((jump_offset as u32) << 2);
 
-		let program = vec![
+		let program = instructions_to_bytes(&vec![
 			ops::build_op_immediate(MipsOpcode::BNE, 1, 2, jump_offset),
 			NOP,
-		];
-		let mut program_bytes = vec![0u8; 4 * program.len()];
-		LittleEndian::write_u32_into(&program[..], &mut program_bytes[..]);
-
+		]);
+		
 		let mut staying_ee = EECore::new();
 		let mut jumping_ee = EECore::new();
 
 		staying_ee.write_register(1, 1234);
 		staying_ee.write_register(2, 1234);
-		staying_ee.cycle(&program_bytes[..]);
+		install_and_run_program(&mut staying_ee, program.clone());
 
 		jumping_ee.write_register(1, 1234);
 		jumping_ee.write_register(2, 1235);
-		jumping_ee.cycle(&program_bytes[..]);
+		install_and_run_program(&mut jumping_ee, program);
 
 		assert_eq!(staying_ee.pc_register, (BIOS_START as u32) + 8);
 		assert_eq!(jumping_ee.pc_register, jump_target);
@@ -174,16 +171,11 @@ mod tests {
 		let jump_offset: u32 = 0x12_34_56;
 		let jump_target = (BIOS_START as u32) & PC_HO_BITS | (jump_offset << 2);
 
-		let program = vec![
+		let mut test_ee = EECore::new();
+		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
 			ops::build_op_jump(MipsOpcode::J, jump_offset),
 			NOP,
-		];
-		let mut program_bytes = vec![0u8; 4 * program.len()];
-		LittleEndian::write_u32_into(&program[..], &mut program_bytes[..]);
-
-		let mut test_ee = EECore::new();
-
-		test_ee.cycle(&program_bytes[..]);
+		]));
 
 		assert_eq!(test_ee.pc_register, jump_target);
 	}
@@ -193,18 +185,12 @@ mod tests {
 		// Execute a jump instruction and a NOP. PC changes to new target.
 		let jump_dest: u32 = 0x1234_5678;
 
-		let program = vec![
+		let mut test_ee = EECore::new();
+		test_ee.write_register(1, jump_dest as u64);
+		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
 			ops::build_op_register(MipsFunction::JR, 1, 0, 0, 0),
 			NOP,
-		];
-		let mut program_bytes = vec![0u8; 4 * program.len()];
-		LittleEndian::write_u32_into(&program[..], &mut program_bytes[..]);
-
-		let mut test_ee = EECore::new();
-
-		test_ee.write_register(1, jump_dest as u64);
-
-		test_ee.cycle(&program_bytes[..]);
+		]));
 
 		assert_eq!(test_ee.pc_register, jump_dest);
 	}
@@ -215,18 +201,12 @@ mod tests {
 		// Old PC appears in arbitrary register.
 		let jump_dest: u32 = 0x1234_5678;
 
-		let program = vec![
+		let mut test_ee = EECore::new();
+		test_ee.write_register(1, jump_dest as u64);
+		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
 			ops::build_op_register(MipsFunction::JaLR, 1, 0, 5, 0),
 			NOP,
-		];
-		let mut program_bytes = vec![0u8; 4 * program.len()];
-		LittleEndian::write_u32_into(&program[..], &mut program_bytes[..]);
-
-		let mut test_ee = EECore::new();
-
-		test_ee.write_register(1, jump_dest as u64);
-
-		test_ee.cycle(&program_bytes[..]);
+		]));
 
 		assert_eq!(test_ee.pc_register, jump_dest);
 		assert_eq!(test_ee.read_register(5) as u32, (BIOS_START as u32) + 8);
@@ -239,18 +219,12 @@ mod tests {
 		let jump_offset: u32 = 0x12_34_56;
 		let jump_target = (BIOS_START as u32) & PC_HO_BITS | (jump_offset << 2);
 
-		let program = vec![
+		let mut test_ee = EECore::new();
+		let old_pc = test_ee.pc_register;
+		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
 			ops::build_op_jump(MipsOpcode::JaL, jump_offset),
 			NOP,
-		];
-		let mut program_bytes = vec![0u8; 4 * program.len()];
-		LittleEndian::write_u32_into(&program[..], &mut program_bytes[..]);
-
-		let mut test_ee = EECore::new();
-
-		let old_pc = test_ee.pc_register;
-
-		test_ee.cycle(&program_bytes[..]);
+		]));
 
 		assert_eq!(test_ee.pc_register, jump_target);
 		assert_eq!(test_ee.read_register(31) as u32, (BIOS_START as u32) + 8);
@@ -268,18 +242,12 @@ mod tests {
 		// Execute a jump instruction and a NOP. PC changes to new target.
 		let jump_dest: u32 = 0x1234_5679;
 
-		let program = vec![
+		let mut test_ee = EECore::new();
+		test_ee.write_register(1, jump_dest as u64);
+		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
 			ops::build_op_register(MipsFunction::JR, 1, 0, 0, 0),
 			NOP,
-		];
-		let mut program_bytes = vec![0u8; 4 * program.len()];
-		LittleEndian::write_u32_into(&program[..], &mut program_bytes[..]);
-
-		let mut test_ee = EECore::new();
-
-		test_ee.write_register(1, jump_dest as u64);
-
-		test_ee.cycle(&program_bytes[..]);
+		]));
 
 		assert_ne!(test_ee.pc_register, jump_dest);
 		assert!(test_ee.in_exception());
@@ -291,21 +259,16 @@ mod tests {
 		let jump_offset: u32 = 0x12_34_56;
 		let jump_target = (BIOS_START as u32) & PC_HO_BITS | (jump_offset << 2);
 
-		let program = vec![
-			ops::build_op_jump(MipsOpcode::J, jump_offset),
-			ops::build_op_register(MipsFunction::Add, 1, 2, 3, 0),
-		];
-		let mut program_bytes = vec![0u8; 4 * program.len()];
-		LittleEndian::write_u32_into(&program[..], &mut program_bytes[..]);
-
 		let mut test_ee = EECore::new();
-
 		let in_1 = 111;
 		let in_2 = 256;
 		test_ee.write_register(1, in_1);
 		test_ee.write_register(2, in_2);
 
-		test_ee.cycle(&program_bytes[..]);
+		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
+			ops::build_op_jump(MipsOpcode::J, jump_offset),
+			ops::build_op_register(MipsFunction::Add, 1, 2, 3, 0),
+		]));
 
 		assert_eq!(test_ee.read_register(3), in_1 + in_2);
 		assert_eq!(test_ee.pc_register, jump_target);

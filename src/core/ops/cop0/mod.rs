@@ -56,7 +56,20 @@ pub fn tlbwi(cpu: &mut EECore, data: &OpCode) {
 
 	// read the required registers, then update the mmu.
 	cpu.mmu.write_index(
-		cpu.read_cop0_direct(Register::PageMask as u8),
+		cpu.read_cop0_direct(Register::EntryHi as u8),
+		cpu.read_cop0_direct(Register::EntryLo0 as u8),
+		cpu.read_cop0_direct(Register::EntryLo1 as u8),
+	);
+}
+
+pub fn tlbwr(cpu: &mut EECore, data: &OpCode) {
+	if !cop0_usable(cpu) {
+		return;
+	}
+
+	// read the required registers, then update the mmu.
+	cpu.mmu.write_random(
+		cpu.read_cop0_direct(Register::Random as u8),
 		cpu.read_cop0_direct(Register::EntryHi as u8),
 		cpu.read_cop0_direct(Register::EntryLo0 as u8),
 		cpu.read_cop0_direct(Register::EntryLo1 as u8),
@@ -105,6 +118,11 @@ mod tests {
 
 	#[test]
 	fn basic_tlbwi() {
+		unimplemented!()
+	}
+
+	#[test]
+	fn basic_tlbwr() {
 		unimplemented!()
 	}
 

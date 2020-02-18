@@ -69,8 +69,11 @@ pub const IOP_RAM_PHYSICAL: u32 = 0x1C00_0000;
 
 pub const BIOS_PHYSICAL: u32 = 0x1FC0_0000;
 pub const BIOS_START: u32 = BIOS_PHYSICAL + KSEG1_START;
+/// BIOS is 4MB.
+pub const BIOS_LEN: u32 = 4 * (1 << (10 * 2));
 
 pub const SPRAM_START: u32 = 0x7000_0000;
+pub const SPRAM_SIZE: usize = 16 * (1 << 10);
 
 /// Amount of physical memory in the PS2: 32 MiB.
 pub const PHYSICAL_MEMORY_SIZE: usize = 32 * (1 << (10 * 2));

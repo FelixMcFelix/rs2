@@ -10,6 +10,7 @@ use std::{
 
 pub mod core;
 pub mod memory;
+pub mod utils;
 
 use crate::core::*;
 

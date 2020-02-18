@@ -19,7 +19,6 @@ use exceptions::{
 	L2Exception,
 };
 use mode::PrivilegeLevel;
-use ops::NOP;
 use pipeline::*;
 use super::memory::{
 	constants::*,
@@ -78,7 +77,8 @@ impl EECore {
 		}
 	}
 
-	pub fn set_bios(&mut self, bios: Vec<u8>) {
+	pub fn set_bios(&mut self, mut bios: Vec<u8>) {
+		bios.resize(BIOS_LEN as usize, 0);
 		self.memory.set_bios(bios);
 	}
 
@@ -310,16 +310,16 @@ impl EECore {
 		}
 	}
 
-	pub fn translate_virtual_address(&mut self, v_addr: u32, load: bool) -> Option<u32> {
+	pub fn translate_virtual_address(&mut self, v_addr: u32, load: bool) -> Option<MmuAddress> {
 		match v_addr {
-			KSEG0_START..=KSEG0_END => Some(v_addr - (KSEG0_START as u32)),
-			KSEG1_START..=KSEG1_END => Some(v_addr - (KSEG1_START as u32)),
+			KSEG0_START..=KSEG0_END => Some(MmuAddress::Address(v_addr - (KSEG0_START as u32))),
+			KSEG1_START..=KSEG1_END => Some(MmuAddress::Address(v_addr - (KSEG1_START as u32))),
 			_ => match self.mmu.translate_address(v_addr, load) {
-				MmuAddress::Address(a) => Some(a),
 				MmuAddress::Exception(e) => {
 					self.throw_l1_exception(e);
 					None
-				}
+				},
+				a@_ => Some(a),
 			},
 		}
 	}

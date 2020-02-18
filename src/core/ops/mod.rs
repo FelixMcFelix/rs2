@@ -55,6 +55,7 @@ rs2_macro::ops!([
 			(MTBPC, cop0::mtc0, Cop0Function::MTBPC, INTEGER_LOAD_STORE_DELAY),
 			(MTC0, cop0::mtc0, Cop0Function::MTC0, INTEGER_LOAD_STORE_DELAY),
 			(TLBWI, cop0::tlbwi, Cop0Function::TlbWI, INTEGER_LOAD_STORE_DELAY),
+			(TLBWR, cop0::tlbwr, Cop0Function::TlbWR, INTEGER_LOAD_STORE_DELAY),
 		]),
 		(MipsOpcode::Cop1, "COP1", Cop1Function::decode, [
 			// N/A

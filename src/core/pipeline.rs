@@ -82,6 +82,11 @@ impl Instruction for OpCode {
 	}
 
 	#[inline]
+	fn i_get_immediate_signed(&self) -> i16 {
+		self.raw.i_get_immediate_signed()
+	}
+
+	#[inline]
 	fn j_get_jump(&self) -> u32 {
 		self.raw.j_get_jump()
 	}
@@ -175,6 +180,11 @@ impl Instruction for BranchOpCode {
 	#[inline]
 	fn i_get_immediate(&self) -> u16 {
 		self.raw.i_get_immediate()
+	}
+
+	#[inline]
+	fn i_get_immediate_signed(&self) -> i16 {
+		self.raw.i_get_immediate_signed()
 	}
 
 	#[inline]
