@@ -15,6 +15,7 @@ pub enum MipsOpcode {
 
 	AddI    = 0b00_1000,
 	AddIU   = 0b00_1001,
+	AndI    = 0b00_1100,
 	BNE     = 0b00_0101,
 	J       = 0b00_0010,
 	JaL     = 0b00_0011,
@@ -29,14 +30,15 @@ pub enum MipsOpcode {
 enum_from_primitive!{
 #[derive(Debug, PartialEq)]
 pub enum MipsFunction {
-	Add  = 0b10_0000,
-	AddU = 0b10_0001,
-	And  = 0b10_0100,
-	JaLR = 0b00_1001,
-	JR   = 0b00_1000,
-	Mult = 0b01_1000,
-	SLL  = 0b00_0000,
-	Sync = 0b00_1111,
+	Add   = 0b10_0000,
+	AddU  = 0b10_0001,
+	And   = 0b10_0100,
+	DAddU = 0b10_1101,
+	JaLR  = 0b00_1001,
+	JR    = 0b00_1000,
+	Mult  = 0b01_1000,
+	SLL   = 0b00_0000,
+	Sync  = 0b00_1111,
 }
 }
 

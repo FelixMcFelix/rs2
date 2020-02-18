@@ -63,6 +63,26 @@ pub fn addu(cpu: &mut EECore, data: &OpCode) {
 	);
 }
 
+pub fn andi(cpu: &mut EECore, data: &OpCode) {
+	// rt <- rs & zero-ext(imm)
+	let extd_imm = data.i_get_immediate() as u64;
+	cpu.write_register(
+		data.ri_get_target(),
+		cpu.read_register(data.ri_get_source()) & extd_imm,
+	);
+}
+
+pub fn daddu(cpu: &mut EECore, data: &OpCode) {
+	// rs + rt -> rd
+	let lhs = cpu.read_register(data.ri_get_source());
+	let rhs = cpu.read_register(data.ri_get_target());
+
+	cpu.write_register(
+		data.r_get_destination(),
+		lhs.wrapping_add(rhs),
+	);
+}
+
 pub fn and(cpu: &mut EECore, data: &OpCode) {
 	cpu.write_register(
 		data.r_get_destination(),
@@ -321,6 +341,16 @@ mod tests {
 		test_ee.execute(ops::process_instruction(instruction));
 
 		assert_eq!(test_ee.read_register(3), in_1 & in_2);
+	}
+
+	#[test]
+	fn basic_andi() {
+		unimplemented!()
+	}
+
+	#[test]
+	fn basic_daddu() {
+		unimplemented!()
 	}
 
 	#[test]

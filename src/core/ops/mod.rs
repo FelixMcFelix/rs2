@@ -21,6 +21,7 @@ rs2_macro::ops!([
 			(ADD, arithmetic::add, MipsFunction::Add, INTEGER_SUM_LOGIC_DELAY),
 			(ADDU, arithmetic::addu, MipsFunction::AddU, INTEGER_SUM_LOGIC_DELAY),
 			(AND, arithmetic::and, MipsFunction::And, INTEGER_SUM_LOGIC_DELAY),
+			(DADDU, arithmetic::daddu, MipsFunction::DAddU, INTEGER_SUM_LOGIC_DELAY),
 			(JALR, branch::jalr, MipsFunction::JaLR, INTEGER_BRANCH_JUMP_DELAY),
 			(JR, branch::jr, MipsFunction::JR, INTEGER_BRANCH_JUMP_DELAY),
 			(MULT, arithmetic::mult, MipsFunction::Mult, INTEGER_MULT_DELAY),
@@ -68,6 +69,7 @@ rs2_macro::ops!([
 	[
 		(ADDI, arithmetic::addi, MipsOpcode::AddI, INTEGER_SUM_LOGIC_DELAY),
 		(ADDIU, arithmetic::addiu, MipsOpcode::AddIU, INTEGER_SUM_LOGIC_DELAY),
+		(ANDI, arithmetic::andi, MipsOpcode::AndI, INTEGER_SUM_LOGIC_DELAY),
 		(BNE, branch::bne, MipsOpcode::BNE, INTEGER_BRANCH_JUMP_DELAY),
 		(J, branch::j, MipsOpcode::J, INTEGER_BRANCH_JUMP_DELAY),
 		(JAL, branch::jal, MipsOpcode::JaL, INTEGER_BRANCH_JUMP_DELAY),
