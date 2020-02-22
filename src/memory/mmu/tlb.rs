@@ -1,9 +1,6 @@
-use crate::core::{
-	cop0::{
-		EntryHi,
-		EntryLo,
-	},
-	EECore,
+use crate::core::cop0::{
+	EntryHi,
+	EntryLo,
 };
 use super::PAGE_MASK_16KB;
 
@@ -46,10 +43,10 @@ pub struct TlbPageInfo {
 impl Tlb {
 	pub fn find_match(&self, vpn_2: u32, spr_vpn_2: u32) -> Option<&TlbLine> {
 		let mut out = None;
-		println!("v: {:08x} sv: {:08x}", vpn_2, spr_vpn_2);
+		// println!("v: {:08x} sv: {:08x}", vpn_2, spr_vpn_2);
 
 		for line in &self.lines[..] {
-			println!("sp? {} vpn {:08x}", line.scratchpad, line.virtual_page_number_half);
+			// println!("sp? {} vpn {:08x}", line.scratchpad, line.virtual_page_number_half);
 			if (line.scratchpad && spr_vpn_2 == line.virtual_page_number_half)
 					|| vpn_2 == line.virtual_page_number_half {
 				out = Some(line);
@@ -101,5 +98,64 @@ impl TlbPageInfo {
 		self.cache_mode = entry_lo.get_cache_mode();
 		self.dirty = entry_lo.is_dirty();
 		self.valid = entry_lo.is_valid();
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::{
+		core::{
+			cop0::{
+				self,
+				Register,
+			},
+			EECore,
+		},
+		memory::{
+			constants::*,
+			mmu::{
+				PAGE_MASK_4KB,
+				MmuAddress,
+			},
+		},
+	};
+
+	#[test]
+	#[should_panic]
+	fn crash_on_bad_spram_line() {
+		let mut test_ee = EECore::default();
+
+		let hi = cop0::entry_hi_from_parts(SPRAM_START >> 13, 0);
+		let lo0 = cop0::entry_lo_from_parts(true, 12, 2, false, true, true);
+		let lo1 = cop0::entry_lo_from_parts(false, 12, 2, true, true, true);
+
+		test_ee.write_cop0(Register::PageMask as u8, PAGE_MASK_16KB);
+
+		test_ee.mmu.write_index(hi, lo0, lo1);
+	}
+
+	#[test]
+	fn basic_spram() {
+		let data = [1, 2, 3, 4, 5, 6, 7, 8];
+		let mut test_ee = EECore::default();
+
+		let hi = 0b0111_0000_0000_0000_0000_0000_0000_0000;
+		let lo0 = cop0::entry_lo_from_parts(true, 0, 0, true, true, true);
+		let lo1 = cop0::entry_lo_from_parts(false, 0, 0, true, true, true);
+
+		// Can we addres SPRAM?
+		test_ee.write_cop0(Register::PageMask as u8, PAGE_MASK_4KB);
+		test_ee.write_cop0(Register::Index as u8, 0);
+		test_ee.mmu.write_index(hi, lo0, lo1);
+		assert_eq!(test_ee.translate_virtual_address(SPRAM_START, false), Some(MmuAddress::Scratchpad(0)));
+
+		// Do writes persist?
+		test_ee.write_memory(SPRAM_START, &data[..]);
+		assert_eq!(&data[..], &test_ee.memory.scratchpad[..data.len()]);
+
+		// Do true reads?
+		let read_data = test_ee.read_memory(SPRAM_START, data.len());
+		assert_eq!(Some(&data[..]), read_data);
 	}
 }

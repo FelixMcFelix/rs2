@@ -60,12 +60,12 @@ pub enum Cop0Function {
 	TlbWR,
 }
 
-const MF0:   u8 = 0b0_0000;
-const C0:    u8 = 0b1_0000;
-const BC0:   u8 = 0b0_1000;
-const MT0:   u8 = 0b0_0100;
-const TLBWI: u8 = 0b0_0010;
-const TLBWR: u8 = 0b0_0110;
+pub const MF0:   u8 = 0b0_0000;
+pub const C0:    u8 = 0b1_0000;
+pub const BC0:   u8 = 0b0_1000;
+pub const MT0:   u8 = 0b0_0100;
+pub const TLBWI: u8 = 0b0_0010;
+pub const TLBWR: u8 = 0b0_0110;
 
 const LAST_11: u32 = 0b0111_1111_1111;
 
@@ -90,6 +90,7 @@ impl Cop0Function {
 				let func = instruction.r_get_function(); 
 				match func {
 					TLBWI => Some(Cop0Function::TlbWI),
+					TLBWR => Some(Cop0Function::TlbWR),
 					_ => None,
 				}
 			},

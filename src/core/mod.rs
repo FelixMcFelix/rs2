@@ -366,7 +366,6 @@ impl EECore {
 		// FIXME: bound to 32-bit space.
 		let pc = self.pc_register;
 		trace!("PC: {:08x}", self.pc_register);
-		let next = self.pc_register.wrapping_add(OPCODE_LENGTH_BYTES as u32);
 
 		let ops = self.read_memory(pc, 2 * OPCODE_LENGTH_BYTES).unwrap();
 

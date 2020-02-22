@@ -98,9 +98,14 @@ pub fn mult(cpu: &mut EECore, data: &OpCode) {
 	let result = lhs.wrapping_mul(rhs);
 
 	cpu.write_hi((result >> 32) as u64);
-	cpu.write_lo((result as i32) as u64);
+	let lo_part = (result as i32).s_ext();
+	cpu.write_lo(lo_part);
 
-	// FIXME: add EE-core specific modification (RRR).
+	// EE-core specific modification (RRR).
+	let dest = data.r_get_destination();
+	if dest != 0 {
+		cpu.write_register(dest, lo_part);
+	}
 }
 
 pub fn ori(cpu: &mut EECore, data: &OpCode) {
@@ -320,10 +325,10 @@ mod tests {
 		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
 			ops::build_op_immediate(MipsOpcode::LUI, 0, 1, base_address_upper),
 			ops::build_op_immediate(MipsOpcode::OrI, 1, 1, base_address_lower),
-			ops::build_op_immediate(MipsOpcode::AddIU, 1, 2, address_offset),
+			ops::build_op_immediate(MipsOpcode::AddIU, 1, 1, address_offset),
 		]));
 
-		assert_eq!(test_ee.read_register(1) as i64, 0x7000_3fc0);
+		assert_eq!(test_ee.read_register(1), 0x7000_3fc0);
 	}
 
 	#[test]
@@ -345,17 +350,93 @@ mod tests {
 
 	#[test]
 	fn basic_andi() {
-		unimplemented!()
+		// Need to ensure this works on full 64-bit width.
+		let in_1 = 0b1000_0000_0000_0000_0000_0000_0100_1111_0010_0000_0000_0010_0000_0000_1111_0001;
+		let in_2 = 0b1111_0000_0110_1000;
+
+		let extended_in_2: u64 = in_2.z_ext();
+
+		let mut test_ee = EECore::new();
+		test_ee.write_register(1, in_1);
+
+		let instruction = ops::build_op_immediate(MipsOpcode::AndI, 1, 2, in_2);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert_eq!(test_ee.read_register(2), in_1 & extended_in_2);
 	}
 
 	#[test]
 	fn basic_daddu() {
-		unimplemented!()
+		let in_1 = std::u32::MAX as u64;
+		let in_2 = 34578;
+
+		let mut test_ee = EECore::new();
+		test_ee.write_register(1, in_1);
+		test_ee.write_register(2, in_2);
+
+		let instruction = ops::build_op_register(MipsFunction::DAddU, 1, 2, 3, 0);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert_eq!(test_ee.read_register(3), in_1 + in_2);
+	}
+
+	#[test]
+	fn daddu_no_overflow_exception() {
+		// Signed overflow SHOULD be allowed.
+		let in_1 = (std::i64::MAX) as u64;
+		let in_2 = 1;
+
+		let mut test_ee = EECore::new();
+		test_ee.write_register(1, in_1);
+		test_ee.write_register(2, in_2);
+
+		let instruction = ops::build_op_register(MipsFunction::DAddU, 1, 2, 3, 0);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert!(!test_ee.in_exception());
+		assert_eq!(test_ee.read_register(3), in_1.wrapping_add(in_2));
 	}
 
 	#[test]
 	fn basic_mult() {
-		unimplemented!()
+		let in_1 = std::u32::MAX.s_ext();
+		let in_2 = 2;
+
+		let mut test_ee = EECore::new();
+		test_ee.write_register(1, in_1);
+		test_ee.write_register(2, in_2);
+
+		// Mult has no dest register.
+		let instruction = ops::build_op_register(MipsFunction::Mult, 1, 2, 0, 0);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		let mult_result = in_1.wrapping_mul(in_2);
+
+		assert_eq!(test_ee.read_hi(), ((mult_result >> 32) as u32).s_ext());
+		assert_eq!(test_ee.read_lo(), (mult_result as u32).s_ext());
+	}
+
+	#[test]
+	fn mult_lo_in_rd() {
+		let in_1 = std::u32::MAX.s_ext();
+		let in_2 = 2;
+
+		let mut test_ee = EECore::new();
+		test_ee.write_register(1, in_1);
+		test_ee.write_register(2, in_2);
+
+		// EE's mult has a dest register...
+		let instruction = ops::build_op_register(MipsFunction::Mult, 1, 2, 3, 0);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		let mult_result = in_1.wrapping_mul(in_2);
+
+		assert_eq!(test_ee.read_register(3), (mult_result as u32).s_ext());
 	}
 
 	#[test]

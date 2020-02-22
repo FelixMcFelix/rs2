@@ -3,7 +3,6 @@ pub mod tlb;
 use crate::core::{
 	cop0::*,
 	exceptions::L1Exception,
-	EECore,
 };
 use tlb::Tlb;
 
@@ -144,7 +143,7 @@ impl Mmu {
 	}
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum MmuAddress {
 	Address(u32),
 	Scratchpad(u32),

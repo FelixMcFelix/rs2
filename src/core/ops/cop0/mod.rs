@@ -49,7 +49,7 @@ pub fn mtc0(cpu: &mut EECore, data: &OpCode) {
 	cpu.write_cop0(data.r_get_destination(), v);
 }
 
-pub fn tlbwi(cpu: &mut EECore, data: &OpCode) {
+pub fn tlbwi(cpu: &mut EECore, _data: &OpCode) {
 	if !cop0_usable(cpu) {
 		return;
 	}
@@ -62,7 +62,7 @@ pub fn tlbwi(cpu: &mut EECore, data: &OpCode) {
 	);
 }
 
-pub fn tlbwr(cpu: &mut EECore, data: &OpCode) {
+pub fn tlbwr(cpu: &mut EECore, _data: &OpCode) {
 	if !cop0_usable(cpu) {
 		return;
 	}
@@ -93,27 +93,32 @@ mod tests {
 			},
 		},
 		memory::constants::*,
+		utils::*,
 	};
 
 	#[test]
 	fn basic_mfc0() {
 		let mut test_ee = EECore::default();
 
-		// FIXME: design some cleaner way of creating COP0 codes.
-		let mut instruction = 0;
-		instruction.set_opcode(MipsOpcode::Cop0 as u8);
-		instruction.ri_set_target(1);
-		// FIXME: make constant for each COP0 register.
-		instruction.r_set_destination(Register::PRId as u8);
-
-		test_ee.execute(ops::process_instruction(instruction));
+		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
+			ops::build_op_register_custom(MipsOpcode::Cop0, MipsFunction::SLL, MF0, 1, Register::PRId as u8, 0),
+		]));
 
 		assert_eq!(test_ee.read_register(1), EE_PRID as u64);
 	}
 
 	#[test]
 	fn basic_mtc0() {
-		unimplemented!()
+		let test_val = 0x1234_5678;
+		let mut test_ee = EECore::default();
+
+		test_ee.write_register(1, test_val as u64);
+
+		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
+			ops::build_op_register_custom(MipsOpcode::Cop0, MipsFunction::SLL, MT0, 1, Register::EntryHi as u8, 0),
+		]));
+
+		assert_eq!(test_ee.read_cop0_direct(Register::EntryHi as u8), test_val);
 	}
 
 	#[test]

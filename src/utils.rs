@@ -5,7 +5,7 @@ use byteorder::{
 use crate::core::EECore;
 
 pub fn install_and_run_program(cpu: &mut EECore, program: Vec<u8>) {
-	let duration = program.len();
+	let duration = program.len() / 4;
 	install_and_run_program_for(cpu, program, duration);
 }
 

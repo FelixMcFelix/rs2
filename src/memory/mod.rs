@@ -41,7 +41,7 @@ impl Memory {
 					_ => &self.data[..],
 				}
 			},
-			Scratchpad(a) => &self.scratchpad[a as usize..],
+			Scratchpad(a) => &self.scratchpad[a as usize..size],
 			_ => unreachable!(),
 		}
 	}
@@ -63,13 +63,14 @@ impl Memory {
 					_ => &mut self.data[..],
 				}
 			},
-			Scratchpad(a) => &mut self.scratchpad[a as usize..],
+			Scratchpad(a) => &mut self.scratchpad[a as usize..size],
 			_ => unreachable!(),
 		}
 	}
 
 	pub fn write(&mut self, addr: MmuAddress, data: &[u8]) {
 		let dest = self.read_mut(addr, data.len());
+		println!("{:?} {:?}", data.len(), dest.len());
 		dest.copy_from_slice(data);
 	}
 }

@@ -50,15 +50,70 @@ mod test {
 			constants::*,
 		},
 		memory::constants::*,
+		utils::*,
 	};
 
 	#[test]
 	fn basic_sw() {
-		unimplemented!()
+		let stored_data: u32 = 0x1234_5678;
+
+		let mut test_ee = EECore::new();
+
+		test_ee.write_register(1, KSEG1_START.z_ext());
+		test_ee.write_register(2, stored_data.s_ext());
+
+		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
+			ops::build_op_immediate(MipsOpcode::SW, 1, 2, 0),
+		]));
+
+		assert_eq!(test_ee.read_memory(KSEG1_START, 4).map(|d| LittleEndian::read_u32(d)), Some(stored_data));
+	}
+
+	#[test]
+	fn sw_with_offsets() {
+		let stored_data: u32 = 0x1234_5678;
+		let base_pointer = KSEG1_START + 256;
+
+		// positive.
+		let mut test_ee = EECore::new();
+
+		test_ee.write_register(1, base_pointer.z_ext());
+		test_ee.write_register(2, stored_data.s_ext());
+
+		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
+			ops::build_op_immediate(MipsOpcode::SW, 1, 2, 256),
+		]));
+
+		assert_eq!(test_ee.read_memory(base_pointer + 256, 4).map(|d| LittleEndian::read_u32(d)), Some(stored_data));
+
+		// negative
+		let mut test_ee = EECore::new();
+
+		test_ee.write_register(1, base_pointer.z_ext());
+		test_ee.write_register(2, stored_data.s_ext());
+
+		let offset = -20;
+
+		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
+			ops::build_op_immediate(MipsOpcode::SW, 1, 2, offset as u16),
+		]));
+
+		assert_eq!(test_ee.read_memory(base_pointer + 20, 4).map(|d| LittleEndian::read_u32(d)), Some(stored_data));
 	}
 
 	#[test]
 	fn basic_sd() {
-		unimplemented!()
+		let stored_data: u64 = 0x1234_5678_9abc_def0;
+
+		let mut test_ee = EECore::new();
+
+		test_ee.write_register(1, KSEG1_START.z_ext());
+		test_ee.write_register(2, stored_data);
+
+		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
+			ops::build_op_immediate(MipsOpcode::SD, 1, 2, 0),
+		]));
+
+		assert_eq!(test_ee.read_memory(KSEG1_START, 8).map(|d| LittleEndian::read_u64(d)), Some(stored_data));
 	}
 }

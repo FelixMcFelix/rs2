@@ -21,7 +21,8 @@ pub fn bne(cpu: &mut EECore, data: &OpCode) {
 fn inner_bne(cpu: &mut EECore, data: &BranchOpCode) -> BranchResult {
 	// Add immediate to current PC value.
 	if data.temp != 0 {
-		cpu.pc_register = cpu.pc_register.wrapping_add(u32::from(data.i_get_immediate()) << 2);
+		let offset: u32 = data.i_get_immediate().s_ext();
+		cpu.pc_register = cpu.pc_register.wrapping_add(offset << 2);
 		BranchResult::BRANCHED
 	} else {
 		BranchResult::empty()
@@ -126,7 +127,7 @@ mod tests {
 	fn basic_bne() {
 		// Execute a jump instruction and a NOP. PC changes by relative amount.
 		// PC only changes if target registers do not match.
-		let jump_offset: u16 = 0x12_34;
+		let jump_offset: u16 = 0x00_f0;
 		let jump_target = (BIOS_START as u32) + 4 + ((jump_offset as u32) << 2);
 
 		let program = instructions_to_bytes(&vec![
@@ -151,17 +152,82 @@ mod tests {
 
 	#[test]
 	fn bne_negative_offset() {
-		unimplemented!()
+		// Go backwards by 5 instructions from Jump's PC.
+		let jump_offset: i16 = -5;
+		let jump_target = (BIOS_START as u32) + 4 - 20;
+
+		let program = instructions_to_bytes(&vec![
+			ops::build_op_immediate(MipsOpcode::BNE, 1, 2, jump_offset as u16),
+			NOP,
+		]);
+
+		let mut jumping_ee = EECore::new();
+
+		jumping_ee.write_register(1, 1234);
+		jumping_ee.write_register(2, 1235);
+		install_and_run_program(&mut jumping_ee, program);
+
+		assert_eq!(jumping_ee.pc_register, jump_target);
 	}
 
 	#[test]
 	fn basic_bgez() {
-		unimplemented!()
+		let jump_offset: u16 = 0x00_f0;
+		let jump_target = (BIOS_START as u32) + 4 + ((jump_offset as u32) << 2);
+
+		let program = instructions_to_bytes(&vec![
+			ops::build_op_immediate(MipsOpcode::RegImm, 1, RegImmFunction::BGEZ as u8, jump_offset),
+			NOP,
+		]);
+		
+		let mut staying_ee = EECore::new();
+		let mut jumping_ee = EECore::new();
+		let mut jumping_z_ee = EECore::new();
+
+		let staying_val = -123;
+
+		staying_ee.write_register(1, staying_val.s_ext());
+		install_and_run_program(&mut staying_ee, program.clone());
+
+		jumping_ee.write_register(1, 1234);
+		install_and_run_program(&mut jumping_ee, program.clone());
+
+		jumping_z_ee.write_register(1, 0);
+		install_and_run_program(&mut jumping_z_ee, program);
+
+		assert_eq!(staying_ee.pc_register, (BIOS_START as u32) + 8);
+		assert_eq!(jumping_ee.pc_register, jump_target);
+		assert_eq!(jumping_z_ee.pc_register, jump_target);
 	}
 
 	#[test]
 	fn basic_bltz() {
-		unimplemented!()
+		let jump_offset: u16 = 0x00_f0;
+		let jump_target = (BIOS_START as u32) + 4 + ((jump_offset as u32) << 2);
+
+		let program = instructions_to_bytes(&vec![
+			ops::build_op_immediate(MipsOpcode::RegImm, 1, RegImmFunction::BLTZ as u8, jump_offset),
+			NOP,
+		]);
+		
+		let mut jumping_ee = EECore::new();
+		let mut stay_z_ee = EECore::new();
+		let mut stay_gz_ee = EECore::new();
+
+		let jumping_val = -123;
+
+		jumping_ee.write_register(1, jumping_val.s_ext());
+		install_and_run_program(&mut jumping_ee, program.clone());
+
+		stay_z_ee.write_register(1, 0);
+		install_and_run_program(&mut stay_z_ee, program.clone());
+
+		stay_gz_ee.write_register(1, 1234);
+		install_and_run_program(&mut stay_gz_ee, program);
+
+		assert_eq!(jumping_ee.pc_register, jump_target);
+		assert_eq!(stay_z_ee.pc_register, (BIOS_START as u32) + 8);
+		assert_eq!(stay_gz_ee.pc_register, (BIOS_START as u32) + 8);
 	}
 
 	#[test]
@@ -208,8 +274,8 @@ mod tests {
 			NOP,
 		]));
 
-		assert_eq!(test_ee.pc_register, jump_dest);
 		assert_eq!(test_ee.read_register(5) as u32, (BIOS_START as u32) + 8);
+		assert_eq!(test_ee.pc_register, jump_dest);
 	}
 
 	#[test]
@@ -240,7 +306,7 @@ mod tests {
 	#[test]
 	fn jr_unaligned_address_exception() {
 		// Execute a jump instruction and a NOP. PC changes to new target.
-		let jump_dest: u32 = 0x1234_5679;
+		let jump_dest: u32 = (BIOS_START as u32) + 0x0000_1235;
 
 		let mut test_ee = EECore::new();
 		test_ee.write_register(1, jump_dest as u64);
