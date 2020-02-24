@@ -64,8 +64,24 @@ pub const MF0:   u8 = 0b0_0000;
 pub const C0:    u8 = 0b1_0000;
 pub const BC0:   u8 = 0b0_1000;
 pub const MT0:   u8 = 0b0_0100;
-pub const TLBWI: u8 = 0b0_0010;
-pub const TLBWR: u8 = 0b0_0110;
+// pub const TLBWI: u8 = 0b0_0010;
+// pub const TLBWR: u8 = 0b0_0110;
+
+enum_from_primitive!{
+#[derive(Debug, PartialEq)]
+pub enum C0Function {
+	TlbWI   = 0b00_0010,
+	TlbWR   = 0b00_0110,
+}
+}
+
+impl C0Function {
+	#[inline(always)]
+	pub fn decode(instruction: u32) -> Option<Self> {
+		let raw_func = instruction.r_get_function();
+		Self::from_u8(raw_func)
+	}
+}
 
 const LAST_11: u32 = 0b0111_1111_1111;
 
@@ -87,10 +103,10 @@ impl Cop0Function {
 			},
 			C0 => {
 				trace!("C0");
-				let func = instruction.r_get_function(); 
-				match func {
-					TLBWI => Some(Cop0Function::TlbWI),
-					TLBWR => Some(Cop0Function::TlbWR),
+				use C0Function::*;
+				match C0Function::decode(instruction) {
+					Some(TlbWI) => Some(Cop0Function::TlbWI),
+					Some(TlbWR) => Some(Cop0Function::TlbWR),
 					_ => None,
 				}
 			},

@@ -88,11 +88,11 @@ pub fn nop(_cpu: &mut EECore, _data: &OpCode) {
 
 #[inline]
 pub fn build_op_register(function: MipsFunction, source: u8, target: u8, destination: u8, shift_amount: u8) -> u32 {
-	build_op_register_custom(MipsOpcode::Special, function, source, target, destination, shift_amount)
+	build_op_register_custom(MipsOpcode::Special, function as u8, source, target, destination, shift_amount)
 }
 
 #[inline]
-pub fn build_op_register_custom(opcode: MipsOpcode, function: MipsFunction, source: u8, target: u8, destination: u8, shift_amount: u8) -> u32 {
+pub fn build_op_register_custom(opcode: MipsOpcode, function: u8, source: u8, target: u8, destination: u8, shift_amount: u8) -> u32 {
 	let mut out = 0;
 
 	out.set_opcode(opcode as u8);
@@ -100,7 +100,7 @@ pub fn build_op_register_custom(opcode: MipsOpcode, function: MipsFunction, sour
 	out.ri_set_target(target);
 	out.r_set_destination(destination);
 	out.r_set_shift_amount(shift_amount);
-	out.r_set_function(function as u8);
+	out.r_set_function(function);
 
 	out
 }
