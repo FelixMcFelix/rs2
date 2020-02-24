@@ -40,3 +40,19 @@ fn write_reg_0_nop() {
 	// Post-condition: R0 == 0
 	assert_eq!(0, test_ee.read_register(0));
 }
+
+#[test]
+fn physical_address_mapped_by_kseg() {
+	let mut test_ee = EECore::default();
+
+	let bases = [KSEG0_START, KSEG1_START];
+	let ends = [KSEG0_END, KSEG1_END];
+
+	for (base, end) in bases.iter().zip(&ends) {
+		for offset in 0..=0x1fff_ffff {
+			let target = base + offset;
+			println!("{:08x} {:08x}", base, offset);
+			assert_eq!(test_ee.translate_virtual_address(target, true), Some(MmuAddress::Address(target)));
+		}
+	}
+}

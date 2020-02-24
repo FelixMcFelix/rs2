@@ -41,7 +41,7 @@ impl Memory {
 					_ => &self.data[..],
 				}
 			},
-			Scratchpad(a) => &self.scratchpad[a as usize..size],
+			Scratchpad(a) => &self.scratchpad[a as usize..a as usize + size],
 			_ => unreachable!(),
 		}
 	}
@@ -63,7 +63,7 @@ impl Memory {
 					_ => &mut self.data[..],
 				}
 			},
-			Scratchpad(a) => &mut self.scratchpad[a as usize..size],
+			Scratchpad(a) => &mut self.scratchpad[a as usize..a as usize + size],
 			_ => unreachable!(),
 		}
 	}

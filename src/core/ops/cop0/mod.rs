@@ -205,7 +205,7 @@ mod tests {
 
 	#[test]
 	fn cop0_always_usable_in_kernel() {
-		let mut test_ee = EECore::default();
+		let mut test_ee = EECore::new();
 
 		let mut status = Status::from_bits_truncate(test_ee.read_cop0_direct(Register::Status as u8));
 		status.remove(Status::COP0_USABLE);
@@ -220,8 +220,8 @@ mod tests {
 
 	#[test]
 	fn cop0_needs_enabled_in_usermode() {
-		let mut allowed_ee = EECore::default();
-		let mut forbidden_ee = EECore::default();
+		let mut allowed_ee = EECore::new();
+		let mut forbidden_ee = EECore::new();
 
 		let program = instructions_to_bytes(&vec![
 			ops::build_op_register_custom(MipsOpcode::Cop0, 0, MF0, 1, Register::PRId as u8, 0),
