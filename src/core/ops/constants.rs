@@ -16,6 +16,7 @@ pub enum MipsOpcode {
 	AddI    = 0b00_1000,
 	AddIU   = 0b00_1001,
 	AndI    = 0b00_1100,
+	BEq     = 0b00_0100,
 	BNE     = 0b00_0101,
 	J       = 0b00_0010,
 	JaL     = 0b00_0011,
@@ -37,6 +38,7 @@ pub enum MipsFunction {
 	JaLR  = 0b00_1001,
 	JR    = 0b00_1000,
 	Mult  = 0b01_1000,
+	Or    = 0b10_0101,
 	SLL   = 0b00_0000,
 	Sync  = 0b00_1111,
 }

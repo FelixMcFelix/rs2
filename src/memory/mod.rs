@@ -32,7 +32,7 @@ impl Memory {
 				match a {
 					0..=IO_REGISTERS_PHYSICAL => {
 						let u_addr = a as usize;
-						&self.data[u_addr..u_addr+PHYSICAL_MEMORY_SIZE]
+						&self.data[u_addr..u_addr+size]
 					},
 					BIOS_PHYSICAL..=0xFFFF_FFFF => {
 						let bios_addr = (a - BIOS_PHYSICAL) as usize;
@@ -54,7 +54,7 @@ impl Memory {
 				match a {
 					0..=IO_REGISTERS_PHYSICAL => {
 						let u_addr = a as usize;
-						&mut self.data[u_addr..u_addr+PHYSICAL_MEMORY_SIZE]
+						&mut self.data[u_addr..u_addr+size]
 					},
 					BIOS_PHYSICAL..=0xFFFF_FFFF => {
 						let bios_addr = (a - BIOS_PHYSICAL) as usize;
@@ -72,5 +72,34 @@ impl Memory {
 		let dest = self.read_mut(addr, data.len());
 		println!("{:?} {:?}", data.len(), dest.len());
 		dest.copy_from_slice(data);
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use byteorder::{
+		ByteOrder,
+		LittleEndian,
+	};
+	use crate::core::EECore;
+
+	#[test]
+	fn low_physical_address_writes_to_ram() {
+		let mut test_ee = EECore::default();
+
+		let space = test_ee.memory.read_mut(MmuAddress::Address(0), 4);
+		let value = 0xDEAD_BEEF;
+
+		LittleEndian::write_u32(space, value);
+
+		assert_eq!(LittleEndian::read_u32(&test_ee.memory.data[..]), value);
+
+		let space = test_ee.memory.read_mut(MmuAddress::Address(512), 4);
+		let value = 0xDEAD_BEEF;
+
+		LittleEndian::write_u32(space, value);
+
+		assert_eq!(LittleEndian::read_u32(&test_ee.memory.data[512..]), value);
 	}
 }

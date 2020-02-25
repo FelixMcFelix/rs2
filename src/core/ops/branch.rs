@@ -12,6 +12,12 @@ use super::instruction::Instruction;
 const PC_HO_BITS: u32 = 0b1111 << 28;
 const PC_ALIGNED_BITS: u32 = 0b11;
 
+pub fn beq(cpu: &mut EECore, data: &OpCode) {
+	// Compute condition here.
+	let cond = cpu.read_register(data.ri_get_source()) == cpu.read_register(data.ri_get_target());
+	cpu.branch(data, inner_bne as BranchAction, cond as u32);
+}
+
 pub fn bne(cpu: &mut EECore, data: &OpCode) {
 	// Compute condition here.
 	let cond = cpu.read_register(data.ri_get_source()) != cpu.read_register(data.ri_get_target());
@@ -121,6 +127,33 @@ mod tests {
 		]));
 
 		assert_ne!(test_ee.pc_register, jump_target);
+	}
+
+	#[test]
+	fn basic_beq() {
+		// Execute a jump instruction and a NOP. PC changes by relative amount.
+		// PC only changes if target registers do not match.
+		let jump_offset: u16 = 0x00_f0;
+		let jump_target = (BIOS_START as u32) + 4 + ((jump_offset as u32) << 2);
+
+		let program = instructions_to_bytes(&vec![
+			ops::build_op_immediate(MipsOpcode::BEq, 1, 2, jump_offset),
+			NOP,
+		]);
+		
+		let mut staying_ee = EECore::new();
+		let mut jumping_ee = EECore::new();
+
+		staying_ee.write_register(1, 1234);
+		staying_ee.write_register(2, 1235);
+		install_and_run_program(&mut staying_ee, program.clone());
+
+		jumping_ee.write_register(1, 1234);
+		jumping_ee.write_register(2, 1234);
+		install_and_run_program(&mut jumping_ee, program);
+
+		assert_eq!(staying_ee.pc_register, (BIOS_START as u32) + 8);
+		assert_eq!(jumping_ee.pc_register, jump_target);
 	}
 
 	#[test]

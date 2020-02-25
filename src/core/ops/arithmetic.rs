@@ -108,6 +108,13 @@ pub fn mult(cpu: &mut EECore, data: &OpCode) {
 	}
 }
 
+pub fn or(cpu: &mut EECore, data: &OpCode) {
+	cpu.write_register(
+		data.r_get_destination(),
+		cpu.read_register(data.ri_get_source()) | cpu.read_register(data.ri_get_target()),
+	);
+}
+
 pub fn ori(cpu: &mut EECore, data: &OpCode) {
 	// rt <- rs | zero-ext(imm)
 	let extd_imm = data.i_get_immediate() as u64;
@@ -437,6 +444,23 @@ mod tests {
 		let mult_result = in_1.wrapping_mul(in_2);
 
 		assert_eq!(test_ee.read_register(3), (mult_result as u32).s_ext());
+	}
+
+	#[test]
+	fn basic_or() {
+		// Need to ensure this works on full 64-bit width.
+		let in_1 = 0b1000_0000_0000_0000_0000_0000_0100_1111_0010_0000_0000_0010_0000_0000_1111_0001;
+		let in_2 = 0b1000_1111_0000_0000_0100_0000_0100_1111_0010_0000_0000_0000_0000_0000_0000_0001;
+
+		let mut test_ee = EECore::new();
+		test_ee.write_register(1, in_1);
+		test_ee.write_register(2, in_2);
+
+		let instruction = ops::build_op_register(MipsFunction::Or, 1, 2, 3, 0);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert_eq!(test_ee.read_register(3), in_1 | in_2);
 	}
 
 	#[test]
