@@ -30,9 +30,6 @@ pub fn sw(cpu: &mut EECore, data: &OpCode) {
 	if let Some(loc) = cpu.read_memory_mut(v_addr as u32, size_of::<u32>()) {
 		LittleEndian::write_u32(loc, to_store);
 	}
-
-	// should except if ttarget addr is badly aligned.
-	// unimplemented!()
 }
 
 pub fn sd(cpu: &mut EECore, data: &OpCode) {

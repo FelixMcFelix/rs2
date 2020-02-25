@@ -319,7 +319,7 @@ impl EECore {
 					self.throw_l1_exception(e);
 					None
 				},
-				a@_ => Some(a),
+				a => Some(a),
 			},
 		}
 	}
@@ -405,6 +405,7 @@ impl EECore {
 		if !branch_result.contains(BranchResult::NULLIFIED) {
 			(instruction.action)(self, &instruction);
 		}
+
 		if !(branch_result.contains(BranchResult::BRANCHED) || self.excepted_this_cycle) {
 			self.pc_register = self.pc_register.wrapping_add(OPCODE_LENGTH_BYTES as u32);
 		}

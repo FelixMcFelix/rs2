@@ -18,6 +18,24 @@ pub fn beq(cpu: &mut EECore, data: &OpCode) {
 	cpu.branch(data, inner_bne as BranchAction, cond as u32);
 }
 
+pub fn beql(cpu: &mut EECore, data: &OpCode) {
+	// Compute condition here.
+	let cond = cpu.read_register(data.ri_get_source()) == cpu.read_register(data.ri_get_target());
+	cpu.branch(data, inner_bnel as BranchAction, cond as u32);
+}
+
+pub fn bgez(cpu: &mut EECore, data: &OpCode) {
+	// If GPR[rs]>=0, then apply offset to current PC as in BNE.
+	let cond = cpu.read_register(data.ri_get_source()) as i64 >= 0;
+	cpu.branch(data, inner_bne as BranchAction, cond as u32);
+}
+
+pub fn bltz(cpu: &mut EECore, data: &OpCode) {
+	// If GPR[rs]<0, then apply offset to current PC as in BNE.
+	let cond = (cpu.read_register(data.ri_get_source()) as i64) < 0;
+	cpu.branch(data, inner_bne as BranchAction, cond as u32);
+}
+
 pub fn bne(cpu: &mut EECore, data: &OpCode) {
 	// Compute condition here.
 	let cond = cpu.read_register(data.ri_get_source()) != cpu.read_register(data.ri_get_target());
@@ -35,16 +53,25 @@ fn inner_bne(cpu: &mut EECore, data: &BranchOpCode) -> BranchResult {
 	}
 }
 
-pub fn bgez(cpu: &mut EECore, data: &OpCode) {
-	// If GPR[rs]>=0, then apply offset to current PC as in BNE.
-	let cond = cpu.read_register(data.ri_get_source()) as i64 >= 0;
-	cpu.branch(data, inner_bne as BranchAction, cond as u32);
+pub fn bnel(cpu: &mut EECore, data: &OpCode) {
+	// Compute condition here.
+	let cond = cpu.read_register(data.ri_get_source()) != cpu.read_register(data.ri_get_target());
+	cpu.branch(data, inner_bnel as BranchAction, cond as u32);
 }
 
-pub fn bltz(cpu: &mut EECore, data: &OpCode) {
-	// If GPR[rs]<0, then apply offset to current PC as in BNE.
-	let cond = (cpu.read_register(data.ri_get_source()) as i64) < 0;
-	cpu.branch(data, inner_bne as BranchAction, cond as u32);
+fn inner_bnel(cpu: &mut EECore, data: &BranchOpCode) -> BranchResult {
+	// Add immediate to current PC value.
+	if data.temp != 0 {
+		let offset: u32 = data.i_get_immediate().s_ext();
+		cpu.pc_register = cpu.pc_register.wrapping_add(offset << 2);
+		BranchResult::BRANCHED
+	} else {
+		BranchResult::NULLIFIED
+	}
+}
+
+pub fn break_i(cpu: &mut EECore, _data: &OpCode) {
+	cpu.throw_l1_exception(L1Exception::Break);
 }
 
 pub fn j(cpu: &mut EECore, data: &OpCode) {
@@ -261,6 +288,26 @@ mod tests {
 		assert_eq!(jumping_ee.pc_register, jump_target);
 		assert_eq!(stay_z_ee.pc_register, (BIOS_START as u32) + 8);
 		assert_eq!(stay_gz_ee.pc_register, (BIOS_START as u32) + 8);
+	}
+
+	#[test]
+	fn basic_break_i() {
+		unimplemented!();
+	}
+
+	#[test]
+	fn basic_beql() {
+		unimplemented!();
+	}
+
+	#[test]
+	fn basic_bnel() {
+		unimplemented!();
+	}
+
+	#[test]
+	fn beql_bnel_skip_delay_slot() {
+		unimplemented!();
 	}
 
 	#[test]

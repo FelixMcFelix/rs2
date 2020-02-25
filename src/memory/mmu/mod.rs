@@ -101,12 +101,8 @@ impl Mmu {
 				} else {
 					return Some(MmuAddress::Exception(L1Exception::TlbStoreInvalid(v_addr)));
 				}
-			} else {
-				if !indiv_page.dirty {
-					if !load {
-						return Some(MmuAddress::Exception(L1Exception::TlbModified(v_addr)));
-					}
-				}
+			} else if !indiv_page.dirty && !load {
+				return Some(MmuAddress::Exception(L1Exception::TlbModified(v_addr)));
 			}
 
 			Some(if line.scratchpad {

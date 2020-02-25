@@ -63,6 +63,13 @@ pub fn addu(cpu: &mut EECore, data: &OpCode) {
 	);
 }
 
+pub fn and(cpu: &mut EECore, data: &OpCode) {
+	cpu.write_register(
+		data.r_get_destination(),
+		cpu.read_register(data.ri_get_source()) & cpu.read_register(data.ri_get_target()),
+	);
+}
+
 pub fn andi(cpu: &mut EECore, data: &OpCode) {
 	// rt <- rs & zero-ext(imm)
 	let extd_imm = data.i_get_immediate() as u64;
@@ -83,11 +90,15 @@ pub fn daddu(cpu: &mut EECore, data: &OpCode) {
 	);
 }
 
-pub fn and(cpu: &mut EECore, data: &OpCode) {
-	cpu.write_register(
-		data.r_get_destination(),
-		cpu.read_register(data.ri_get_source()) & cpu.read_register(data.ri_get_target()),
-	);
+pub fn divu(cpu: &mut EECore, data: &OpCode) {
+	let lhs = cpu.read_register(data.ri_get_source()) as u32;
+	let rhs = cpu.read_register(data.ri_get_target()) as u32;
+
+	let quotient = (lhs / rhs).s_ext();
+	let remainder = (lhs % rhs).s_ext();
+
+	cpu.write_hi(remainder);
+	cpu.write_lo(quotient);
 }
 
 pub fn mult(cpu: &mut EECore, data: &OpCode) {
@@ -134,6 +145,15 @@ pub fn sll(cpu: &mut EECore, data: &OpCode) {
 pub fn slti(cpu: &mut EECore, data: &OpCode) {
 	let lhs = cpu.read_register(data.ri_get_source()) as i64;
 	let rhs = i64::from(data.i_get_immediate());
+	cpu.write_register(
+		data.ri_get_target(),
+		if lhs < rhs { 1 } else { 0 },
+	);
+}
+
+pub fn sltiu(cpu: &mut EECore, data: &OpCode) {
+	let lhs = cpu.read_register(data.ri_get_source());
+	let rhs = data.i_get_immediate().s_ext();
 	cpu.write_register(
 		data.ri_get_target(),
 		if lhs < rhs { 1 } else { 0 },
@@ -408,6 +428,24 @@ mod tests {
 	}
 
 	#[test]
+	fn basic_divu() {
+		let in_1 = std::u32::MAX.z_ext();
+		let in_2 = 5;
+
+		let mut test_ee = EECore::new();
+		test_ee.write_register(1, in_1);
+		test_ee.write_register(2, in_2);
+
+		// Mult has no dest register.
+		let instruction = ops::build_op_register(MipsFunction::DivU, 1, 2, 0, 0);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert_eq!(test_ee.read_lo(), in_1 / in_2);
+		assert_eq!(test_ee.read_hi(), in_1 % in_2);
+	}
+
+	#[test]
 	fn basic_mult() {
 		let in_1 = std::u32::MAX.s_ext();
 		let in_2 = 2;
@@ -523,6 +561,11 @@ mod tests {
 		test_ee.execute(ops::process_instruction(instruction));
 
 		assert_eq!(test_ee.read_register(2), 0);
+	}
+
+	#[test]
+	fn basic_sltiu() {
+		unimplemented!();
 	}
 
 	#[test]

@@ -1,8 +1,33 @@
-use crate::core::{
-	pipeline::*,
-	EECore,
+use crate::{
+	core::{
+		pipeline::*,
+		EECore,
+	},
+	utils::*,
 };
+use std::mem::size_of;
 use super::instruction::Instruction;
+
+pub fn mflo(cpu: &mut EECore, data: &OpCode) {
+	// LO -> GPR[rd]
+	cpu.write_register(data.r_get_destination(), cpu.read_lo());
+}
+
+pub fn lb(cpu: &mut EECore, data: &OpCode) {
+	let offset: u32 = data.i_get_immediate_signed().s_ext();
+	let v_addr = (cpu.read_register(data.ri_get_source()) as u32).wrapping_add(offset);
+
+	trace!("I want to load byte from v_addr {:08x}",
+		v_addr,
+	);
+
+	let loc = cpu.read_memory(v_addr as u32, size_of::<u8>())
+		.map(|buf| buf[0]);
+
+	if let Some(loc) = loc {
+		cpu.write_register(data.ri_get_target(), loc.s_ext());
+	}
+}
 
 pub fn lui(cpu: &mut EECore, data: &OpCode) {
 	// load sign extended shifted value of immediate into rt.
@@ -24,6 +49,16 @@ mod test {
 		},
 		memory::constants::*,
 	};
+
+	#[test]
+	fn basic_mflo() {
+		unimplemented!();
+	}
+
+	#[test]
+	fn basic_lb() {
+		unimplemented!();
+	}
 
 	#[test]
 	fn basic_lui() {
