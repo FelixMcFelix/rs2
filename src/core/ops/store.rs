@@ -10,6 +10,22 @@ use crate::{
 use std::mem::size_of;
 use super::instruction::Instruction;
 
+pub fn sb(cpu: &mut EECore, data: &OpCode) {
+	// mem[GPR[rs] + signed(imm)] <- (GPR[rt] as 32)
+	let to_store = cpu.read_register(data.ri_get_target()) as u8;
+	let offset: u32 = data.i_get_immediate_signed().s_ext();
+	let v_addr = (cpu.read_register(data.ri_get_source()) as u32).wrapping_add(offset);
+
+	trace!("I want to store {} in v_addr {:08x}",
+		to_store,
+		v_addr,
+	);
+
+	if let Some(loc) = cpu.read_memory_mut(v_addr as u32, size_of::<u32>()) {
+		loc[0] = to_store;
+	}
+}
+
 pub fn sw(cpu: &mut EECore, data: &OpCode) {
 	// mem[GPR[rs] + signed(imm)] <- (GPR[rt] as 32)
 	let to_store = cpu.read_register(data.ri_get_target()) as u32;
@@ -69,6 +85,22 @@ mod test {
 		memory::constants::*,
 		utils::*,
 	};
+
+	#[test]
+	fn basic_sb() {
+		let stored_data: u8 = 0xfe;
+
+		let mut test_ee = EECore::new();
+
+		test_ee.write_register(1, KSEG1_START.z_ext());
+		test_ee.write_register(2, stored_data.s_ext());
+
+		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
+			ops::build_op_immediate(MipsOpcode::SB, 1, 2, 0),
+		]));
+
+		assert_eq!(test_ee.read_memory(KSEG1_START, 1).map(|d| d[0]), Some(stored_data));
+	}
 
 	#[test]
 	fn basic_sw() {

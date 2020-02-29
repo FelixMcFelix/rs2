@@ -2,6 +2,7 @@ mod arithmetic;
 mod branch;
 pub mod constants;
 mod cop0;
+mod cop1;
 pub mod instruction;
 mod load;
 mod store;
@@ -30,6 +31,7 @@ rs2_macro::ops!([
 			(MULT, arithmetic::mult, MipsFunction::Mult, INTEGER_MULT_DELAY),
 			(OR, arithmetic::or, MipsFunction::Or, INTEGER_SUM_LOGIC_DELAY),
 			(SLL, arithmetic::sll, MipsFunction::SLL, INTEGER_SHIFT_LUI_DELAY),
+			(SRA, arithmetic::sra, MipsFunction::SRA, INTEGER_SHIFT_LUI_DELAY),
 			(SYNC, nop, MipsFunction::Sync, INTEGER_SHIFT_LUI_DELAY),
 		]),
 		(MipsOpcode::Cache, "CACHE", CacheFunction::decode, [
@@ -81,12 +83,17 @@ rs2_macro::ops!([
 		(J, branch::j, MipsOpcode::J, INTEGER_BRANCH_JUMP_DELAY),
 		(JAL, branch::jal, MipsOpcode::JaL, INTEGER_BRANCH_JUMP_DELAY),
 		(LB, load::lb, MipsOpcode::LB, INTEGER_LOAD_STORE_DELAY),
+		(LBU, load::lbu, MipsOpcode::LBU, INTEGER_LOAD_STORE_DELAY),
+		(LD, load::ld, MipsOpcode::LD, INTEGER_LOAD_STORE_DELAY),
 		(LUI, load::lui, MipsOpcode::LUI, INTEGER_SHIFT_LUI_DELAY),
+		(LW, load::lw, MipsOpcode::LW, INTEGER_LOAD_STORE_DELAY),
 		(ORI, arithmetic::ori, MipsOpcode::OrI, INTEGER_SUM_LOGIC_DELAY),
+		(SB, store::sb, MipsOpcode::SB, INTEGER_LOAD_STORE_DELAY),
 		(SD, store::sd, MipsOpcode::SD, INTEGER_LOAD_STORE_DELAY),
 		(SLTI, arithmetic::slti, MipsOpcode::SLTI, INTEGER_SUM_LOGIC_DELAY),
 		(SLTIU, arithmetic::sltiu, MipsOpcode::SLTIU, INTEGER_SUM_LOGIC_DELAY),
 		(SW, store::sw, MipsOpcode::SW, INTEGER_LOAD_STORE_DELAY),
+		(SWC1, cop1::swc1, MipsOpcode::SWC1, FLOAT_MFC1_DELAY),
 	],
 ]);
 

@@ -70,7 +70,6 @@ impl Memory {
 
 	pub fn write(&mut self, addr: MmuAddress, data: &[u8]) {
 		let dest = self.read_mut(addr, data.len());
-		println!("{:?} {:?}", data.len(), dest.len());
 		dest.copy_from_slice(data);
 	}
 }

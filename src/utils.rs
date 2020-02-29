@@ -103,6 +103,42 @@ pub trait ZeroExtend<T> {
 	fn z_ext(self) -> T;
 }
 
+impl ZeroExtend<u16> for i8 {
+	fn z_ext(self) -> u16 {
+		(self as u8).z_ext()
+	}
+}
+
+impl ZeroExtend<u16> for u8 {
+	fn z_ext(self) -> u16 {
+		self as u16
+	}
+}
+
+impl ZeroExtend<u32> for i8 {
+	fn z_ext(self) -> u32 {
+		(self as u8).z_ext()
+	}
+}
+
+impl ZeroExtend<u32> for u8 {
+	fn z_ext(self) -> u32 {
+		self as u32
+	}
+}
+
+impl ZeroExtend<u64> for i8 {
+	fn z_ext(self) -> u64 {
+		(self as u8).z_ext()
+	}
+}
+
+impl ZeroExtend<u64> for u8 {
+	fn z_ext(self) -> u64 {
+		self as u64
+	}
+}
+
 impl ZeroExtend<u32> for i16 {
 	fn z_ext(self) -> u32 {
 		(self as u16).z_ext()

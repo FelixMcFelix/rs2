@@ -43,10 +43,8 @@ pub struct TlbPageInfo {
 impl Tlb {
 	pub fn find_match(&self, vpn_2: u32, spr_vpn_2: u32) -> Option<&TlbLine> {
 		let mut out = None;
-		// println!("v: {:08x} sv: {:08x}", vpn_2, spr_vpn_2);
 
 		for line in &self.lines[..] {
-			// println!("sp? {} vpn {:08x}", line.scratchpad, line.virtual_page_number_half);
 			if (line.scratchpad && spr_vpn_2 == line.virtual_page_number_half)
 					|| vpn_2 == line.virtual_page_number_half {
 				out = Some(line);

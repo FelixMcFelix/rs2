@@ -43,14 +43,10 @@ pub fn addiu(cpu: &mut EECore, data: &OpCode) {
 	let lhs = cpu.read_register(data.ri_get_source()) as u32;
 	let rhs = data.i_get_immediate_signed().s_ext();
 
-	println!("{:08x} +u {:08x}: {:08x}", lhs, rhs, lhs.wrapping_add(rhs).s_ext());
-
 	cpu.write_register(
 		data.ri_get_target(),
 		lhs.wrapping_add(rhs).s_ext(),
 	);
-
-	println!("{:08x}", cpu.read_register(data.ri_get_target()));
 }
 
 pub fn addu(cpu: &mut EECore, data: &OpCode) {
@@ -138,7 +134,7 @@ pub fn ori(cpu: &mut EECore, data: &OpCode) {
 pub fn sll(cpu: &mut EECore, data: &OpCode) {
 	cpu.write_register(
 		data.r_get_destination(),
-		cpu.read_register(data.ri_get_target()) << data.r_get_shift_amount(),
+		((cpu.read_register(data.ri_get_target()) as u32) << data.r_get_shift_amount()).s_ext(),
 	);
 }
 
@@ -157,6 +153,13 @@ pub fn sltiu(cpu: &mut EECore, data: &OpCode) {
 	cpu.write_register(
 		data.ri_get_target(),
 		if lhs < rhs { 1 } else { 0 },
+	);
+}
+
+pub fn sra(cpu: &mut EECore, data: &OpCode) {
+	cpu.write_register(
+		data.r_get_destination(),
+		(cpu.read_register(data.ri_get_target()) as i32 >> data.r_get_shift_amount()).s_ext(),
 	);
 }
 
@@ -538,10 +541,37 @@ mod tests {
 	}
 
 	#[test]
+	fn basic_sll() {
+		let input: u32 = 0b11 << 30;
+		let shift_amount = 1;
+		let mut test_ee = EECore::new();
+
+		test_ee.write_register(1, input.s_ext());
+
+		let instruction = ops::build_op_register(MipsFunction::SLL, 0, 1, 2, shift_amount);
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert_eq!(test_ee.read_register(2), 0xffff_ffff_8000_0000);
+	}
+
+	#[test]
+	fn basic_sra() {
+		let input: u32 = 0b1 << 31;
+		let shift_amount = 1;
+		let mut test_ee = EECore::new();
+
+		test_ee.write_register(1, input.s_ext());
+
+		let instruction = ops::build_op_register(MipsFunction::SRA, 0, 1, 2, shift_amount);
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert_eq!(test_ee.read_register(2), 0xffff_ffff_c000_0000);
+	}
+
+	#[test]
 	fn basic_slti() {
-		// Place a value into register 1, store their sum in register 2.
 		let in_1 = 23467;
-		let in_2 = 34578;
+		let in_2: u16 = 32760;
 
 		let mut test_ee = EECore::new();
 		test_ee.write_register(1, in_1);
@@ -554,9 +584,7 @@ mod tests {
 		assert_eq!(test_ee.read_register(2), 1);
 
 		// Test negative case.
-		test_ee.write_register(1, in_2 as u64);
-
-		let instruction = ops::build_op_immediate(MipsOpcode::SLTI, 1, 2, in_2);
+		test_ee.write_register(1, in_2.s_ext());
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -564,13 +592,7 @@ mod tests {
 	}
 
 	#[test]
-	fn basic_sltiu() {
-		unimplemented!();
-	}
-
-	#[test]
 	fn slti_sign_used() {
-		// Place a value into register 1, store their sum in register 2.
 		let in_1 = -1;
 		let in_2 = 0;
 
@@ -582,5 +604,44 @@ mod tests {
 		test_ee.execute(ops::process_instruction(instruction));
 
 		assert_eq!(test_ee.read_register(2), 1);
+	}
+
+	#[test]
+	fn basic_sltiu() {
+		let in_1 = 23467;
+		let in_2 = 34578;
+
+		let mut test_ee = EECore::new();
+		test_ee.write_register(1, in_1);
+
+		// Test positive case.
+		let instruction = ops::build_op_immediate(MipsOpcode::SLTIU, 1, 2, in_2);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert_eq!(test_ee.read_register(2), 1);
+
+		// Test negative case.
+		test_ee.write_register(1, in_2.s_ext());
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert_eq!(test_ee.read_register(2), 0);
+	}
+
+	#[test]
+	fn sltiu_sign_unused() {
+		// Place a value into register 1, store their sum in register 2.
+		let in_1 = -1;
+		let in_2 = 0;
+
+		let mut test_ee = EECore::new();
+		test_ee.write_register(1, in_1.s_ext());
+
+		let instruction = ops::build_op_immediate(MipsOpcode::SLTIU, 1, 2, in_2);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert_eq!(test_ee.read_register(2), 0);
 	}
 }

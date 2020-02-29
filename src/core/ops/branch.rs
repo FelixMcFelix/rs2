@@ -292,22 +292,82 @@ mod tests {
 
 	#[test]
 	fn basic_break_i() {
-		unimplemented!();
+		// Should literally just throw an exception.
+		let mut test_ee = EECore::new();
+		
+		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
+			ops::build_op_register(MipsFunction::Break, 0, 0, 0, 0),
+		]));
+
+		assert!(test_ee.in_exception());
 	}
 
 	#[test]
-	fn basic_beql() {
-		unimplemented!();
+	fn basic_beql_nullfies() {
+		// Execute a jump instruction and a store. PC changes by relative amount.
+		// PC only changes if target registers do not match.
+
+		// HOWEVER, if branch is not fired, then the branch delay slot is not exec'd.
+		let jump_offset: u16 = 0x00_f0;
+		let jump_target = (BIOS_START as u32) + 4 + ((jump_offset as u32) << 2);
+
+		let proof_of_delay = 0xa123;
+
+		let program = instructions_to_bytes(&vec![
+			ops::build_op_immediate(MipsOpcode::BEqL, 1, 2, jump_offset),
+			ops::build_op_immediate(MipsOpcode::OrI, 0, 4, proof_of_delay),
+		]);
+		
+		let mut staying_ee = EECore::new();
+		let mut jumping_ee = EECore::new();
+
+		staying_ee.write_register(1, 1234);
+		staying_ee.write_register(2, 1235);
+		install_and_run_program(&mut staying_ee, program.clone());
+
+		jumping_ee.write_register(1, 1234);
+		jumping_ee.write_register(2, 1234);
+		install_and_run_program(&mut jumping_ee, program);
+
+		assert_eq!(staying_ee.pc_register, (BIOS_START as u32) + 8);
+		assert_eq!(staying_ee.read_register(4), 0);
+
+		assert_eq!(jumping_ee.pc_register, jump_target);
+		assert_eq!(jumping_ee.read_register(4), proof_of_delay.z_ext());
 	}
 
 	#[test]
-	fn basic_bnel() {
-		unimplemented!();
-	}
+	fn basic_bnel_nullfies() {
+		// Execute a jump instruction and a store. PC changes by relative amount.
+		// PC only changes if target registers do not match.
 
-	#[test]
-	fn beql_bnel_skip_delay_slot() {
-		unimplemented!();
+		// HOWEVER, if branch is not fired, then the branch delay slot is not exec'd.
+		let jump_offset: u16 = 0x00_f0;
+		let jump_target = (BIOS_START as u32) + 4 + ((jump_offset as u32) << 2);
+
+		let proof_of_delay = 0xa123;
+
+		let program = instructions_to_bytes(&vec![
+			ops::build_op_immediate(MipsOpcode::BNEL, 1, 2, jump_offset),
+			ops::build_op_immediate(MipsOpcode::OrI, 0, 4, proof_of_delay),
+		]);
+		
+		let mut staying_ee = EECore::new();
+		let mut jumping_ee = EECore::new();
+
+		staying_ee.write_register(1, 1234);
+		staying_ee.write_register(2, 1234);
+		install_and_run_program(&mut staying_ee, program.clone());
+
+		jumping_ee.write_register(1, 1234);
+		jumping_ee.write_register(2, 1235);
+		install_and_run_program(&mut jumping_ee, program);
+
+		assert_eq!(staying_ee.pc_register, (BIOS_START as u32) + 8);
+		assert_eq!(staying_ee.read_register(4), 0);
+
+		assert_eq!(jumping_ee.pc_register, jump_target);
+		assert_eq!(jumping_ee.read_register(4), proof_of_delay.z_ext());
 	}
 
 	#[test]

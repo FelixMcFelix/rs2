@@ -23,12 +23,17 @@ pub enum MipsOpcode {
 	J       = 0b00_0010,
 	JaL     = 0b00_0011,
 	LB      = 0b10_0000,
+	LBU     = 0b10_0100,
+	LD      = 0b11_0111,
 	LUI     = 0b00_1111,
+	LW      = 0b10_0011,
 	OrI     = 0b00_1101,
+	SB      = 0b10_1000,
 	SD      = 0b11_1111,
 	SLTI    = 0b00_1010,
 	SLTIU   = 0b00_1011,
 	SW      = 0b10_1011,
+	SWC1    = 0b11_1001,
 }
 }
 
@@ -47,6 +52,7 @@ pub enum MipsFunction {
 	Mult  = 0b01_1000,
 	Or    = 0b10_0101,
 	SLL   = 0b00_0000,
+	SRA   = 0b00_0011,
 	Sync  = 0b00_1111,
 }
 }
