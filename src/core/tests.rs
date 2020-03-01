@@ -50,3 +50,8 @@ fn physical_address_mapped_by_kseg_0_1() {
 		assert_eq!(test_ee.translate_virtual_address(KSEG1_START + offset, true), Some(MmuAddress::Address(offset)));
 	}
 }
+
+#[test]
+fn branch_delay_active_with_dual_issue_makes_two_reads() {
+	unimplemented!()
+}

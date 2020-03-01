@@ -360,27 +360,28 @@ impl EECore {
 			self.throw_l1_exception(L1Exception::Interrupt(7))
 		}
 
-		// Read and parse two instructions, put them into the pipeline.
-		// FIXME: hack to avoid MMU during early BIOS testing.
+		let dual_issue = self.dual_issue;
+		let will_jump = self.branch_delay_slot_active.is_some();
 
-		// FIXME: bound to 32-bit space.
 		let pc = self.pc_register;
 		trace!("PC: {:08x}", self.pc_register);
 
 		let ops = self.read_memory(pc, 2 * OPCODE_LENGTH_BYTES).unwrap();
 
-		// FIXME: these checks will be slow/unnecessary once I move to real memory/mmu.
-		// This is some ugly dupe, in the mean time.
 		let i1 = LittleEndian::read_u32(&ops);
 		let i2 = LittleEndian::read_u32(&ops[OPCODE_LENGTH_BYTES..]);
-
-		// p1 may accidentally enable this...
-		let dual_issue = self.dual_issue;
 
 		let p1 = ops::process_instruction(i1);
 		self.execute(p1);
 
 		if dual_issue {
+			trace!("PC: {:08x}", self.pc_register);
+			let i2 = if will_jump {
+				LittleEndian::read_u32(self.read_memory(pc, OPCODE_LENGTH_BYTES).unwrap())
+			} else {
+				i2
+			};
+
 			let p2 = ops::process_instruction(i2);
 			self.execute(p2);
 		}
