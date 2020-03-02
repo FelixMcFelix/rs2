@@ -86,15 +86,46 @@ pub fn daddu(cpu: &mut EECore, data: &OpCode) {
 	);
 }
 
+pub fn div(cpu: &mut EECore, data: &OpCode) {
+	let lhs = cpu.read_register(data.ri_get_source()) as i32;
+	let rhs = cpu.read_register(data.ri_get_target()) as i32;
+
+	if rhs == 0 {
+		return;
+	}
+
+	// may need some very... specific mods.
+
+	let quotient = lhs.wrapping_div(rhs).s_ext();
+	let remainder = lhs.wrapping_rem(rhs).s_ext();
+
+	cpu.write_hi(remainder);
+	cpu.write_lo(quotient);
+}
+
 pub fn divu(cpu: &mut EECore, data: &OpCode) {
 	let lhs = cpu.read_register(data.ri_get_source()) as u32;
 	let rhs = cpu.read_register(data.ri_get_target()) as u32;
+
+	if rhs == 0 {
+		return;
+	}
 
 	let quotient = (lhs / rhs).s_ext();
 	let remainder = (lhs % rhs).s_ext();
 
 	cpu.write_hi(remainder);
 	cpu.write_lo(quotient);
+}
+
+pub fn movn(cpu: &mut EECore, data: &OpCode) {
+	// if rt !=0, then rd <- rs
+	if cpu.read_register(data.ri_get_target()) != 0 {
+		cpu.write_register(
+			data.r_get_destination(),
+			cpu.read_register(data.ri_get_source()),
+		);
+	}
 }
 
 pub fn mult(cpu: &mut EECore, data: &OpCode) {
@@ -138,6 +169,15 @@ pub fn sll(cpu: &mut EECore, data: &OpCode) {
 	);
 }
 
+pub fn slt(cpu: &mut EECore, data: &OpCode) {
+	let lhs = cpu.read_register(data.ri_get_source()) as i64;
+	let rhs = cpu.read_register(data.ri_get_target()) as i64;
+	cpu.write_register(
+		data.r_get_destination(),
+		if lhs < rhs { 1 } else { 0 },
+	);
+}
+
 pub fn slti(cpu: &mut EECore, data: &OpCode) {
 	let lhs = cpu.read_register(data.ri_get_source()) as i64;
 	let rhs = i64::from(data.i_get_immediate());
@@ -156,11 +196,36 @@ pub fn sltiu(cpu: &mut EECore, data: &OpCode) {
 	);
 }
 
+pub fn sltu(cpu: &mut EECore, data: &OpCode) {
+	let lhs = cpu.read_register(data.ri_get_source());
+	let rhs = cpu.read_register(data.ri_get_target());
+	cpu.write_register(
+		data.r_get_destination(),
+		if lhs < rhs { 1 } else { 0 },
+	);
+}
+
 pub fn sra(cpu: &mut EECore, data: &OpCode) {
 	cpu.write_register(
 		data.r_get_destination(),
 		(cpu.read_register(data.ri_get_target()) as i32 >> data.r_get_shift_amount()).s_ext(),
 	);
+}
+
+pub fn srl(cpu: &mut EECore, data: &OpCode) {
+	cpu.write_register(
+		data.r_get_destination(),
+		(cpu.read_register(data.ri_get_target()) as u32 >> data.r_get_shift_amount()).s_ext(),
+	);
+}
+
+pub fn subu(cpu: &mut EECore, data: &OpCode) {
+	let lhs = cpu.read_register(data.ri_get_source()) as u32;
+	let rhs = cpu.read_register(data.ri_get_target()) as u32;
+	cpu.write_register(
+		data.r_get_destination(),
+		(lhs - rhs).s_ext(),
+	);	
 }
 
 #[cfg(test)]
@@ -431,6 +496,104 @@ mod tests {
 	}
 
 	#[test]
+	fn basic_div() {
+		let in_1: i32 = -200;
+		let in_2: i32 = -6;
+
+		let mut test_ee = EECore::new();
+		test_ee.write_register(1, in_1.s_ext());
+		test_ee.write_register(2, in_2.s_ext());
+
+		let instruction = ops::build_op_register(MipsFunction::Div, 1, 2, 0, 0);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert_eq!(test_ee.read_lo() as i32, in_1 / in_2);
+		assert_eq!(test_ee.read_hi() as i32, in_1 % in_2);
+	}
+
+	#[test]
+	fn div_sign_table() {
+		// DIV must follow the sign table described in pp.51
+		let pos: i32 = 10;
+		let pos_2: i32 = 7;
+		let neg: i32 = -11;
+		let neg_2: i32 = -3;
+
+		let mut test_ee = EECore::new();
+
+		// Mult has no dest register.
+		let instruction = ops::build_op_register(MipsFunction::Div, 1, 2, 0, 0);
+
+		// POS / POS
+		test_ee.write_register(1, pos.s_ext());
+		test_ee.write_register(2, pos_2.s_ext());
+		test_ee.execute(ops::process_instruction(instruction));
+		println!("{:?} {:?}", test_ee.read_lo() as i32, test_ee.read_hi() as i32);
+		assert!((test_ee.read_lo() as i32) > 0);
+		assert!((test_ee.read_hi() as i32) > 0);
+
+		// POS / NEG
+		test_ee.write_register(1, pos.s_ext());
+		test_ee.write_register(2, neg_2.s_ext());
+		test_ee.execute(ops::process_instruction(instruction));
+		println!("{:?} {:?}", test_ee.read_lo() as i32, test_ee.read_hi() as i32);
+		assert!((test_ee.read_lo() as i32) < 0);
+		assert!((test_ee.read_hi() as i32) > 0);
+
+		// NEG / POS
+		test_ee.write_register(1, neg.s_ext());
+		test_ee.write_register(2, pos_2.s_ext());
+		test_ee.execute(ops::process_instruction(instruction));
+		println!("{:?} {:?}", test_ee.read_lo() as i32, test_ee.read_hi() as i32);
+		assert!((test_ee.read_lo() as i32) < 0);
+		assert!((test_ee.read_hi() as i32) < 0);
+
+		// NEG / NEG
+		test_ee.write_register(1, neg.s_ext());
+		test_ee.write_register(2, neg_2.s_ext());
+		test_ee.execute(ops::process_instruction(instruction));
+		println!("{:?} {:?}", test_ee.read_lo() as i32, test_ee.read_hi() as i32);
+		assert!((test_ee.read_lo() as i32) > 0);
+		assert!((test_ee.read_hi() as i32) < 0);
+	}
+
+	#[test]
+	fn div_min_over_minus_one() {
+		// DIV must not overflow and return a specific result for i32::MIN / -1
+		let in_1: i32 = std::i32::MIN;
+		let in_2: i32 = -1;
+
+		let mut test_ee = EECore::new();
+		test_ee.write_register(1, in_1.s_ext());
+		test_ee.write_register(2, in_2.s_ext());
+
+		let instruction = ops::build_op_register(MipsFunction::Div, 1, 2, 0, 0);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert_eq!(test_ee.read_lo() as i32, std::i32::MIN);
+		assert_eq!(test_ee.read_hi() as i32, 0);
+	}
+
+	#[test]
+	fn div_by_zero_valid() {
+		// DIV must not overflow and return a specific result for i32::MIN / -1
+		let in_1: i32 = 646;
+		let in_2: i32 = 0;
+
+		let mut test_ee = EECore::new();
+		test_ee.write_register(1, in_1.s_ext());
+		test_ee.write_register(2, in_2.s_ext());
+
+		let instruction = ops::build_op_register(MipsFunction::Div, 1, 2, 0, 0);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert!(!test_ee.in_exception());
+	}
+
+	#[test]
 	fn basic_divu() {
 		let in_1 = std::u32::MAX.z_ext();
 		let in_2 = 5;
@@ -439,13 +602,34 @@ mod tests {
 		test_ee.write_register(1, in_1);
 		test_ee.write_register(2, in_2);
 
-		// Mult has no dest register.
 		let instruction = ops::build_op_register(MipsFunction::DivU, 1, 2, 0, 0);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
 		assert_eq!(test_ee.read_lo(), in_1 / in_2);
 		assert_eq!(test_ee.read_hi(), in_1 % in_2);
+	}
+
+	#[test]
+	fn divu_by_zero_valid() {
+		// DIV must not overflow and return a specific result for i32::MIN / -1
+		let in_1: i32 = 646;
+		let in_2: i32 = 0;
+
+		let mut test_ee = EECore::new();
+		test_ee.write_register(1, in_1.s_ext());
+		test_ee.write_register(2, in_2.s_ext());
+
+		let instruction = ops::build_op_register(MipsFunction::DivU, 1, 2, 0, 0);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert!(!test_ee.in_exception());
+	}
+
+	#[test]
+	fn basic_movn() {
+		unimplemented!();
 	}
 
 	#[test]
@@ -555,17 +739,13 @@ mod tests {
 	}
 
 	#[test]
-	fn basic_sra() {
-		let input: u32 = 0b1 << 31;
-		let shift_amount = 1;
-		let mut test_ee = EECore::new();
+	fn basic_slt() {
+		unimplemented!();
+	}
 
-		test_ee.write_register(1, input.s_ext());
-
-		let instruction = ops::build_op_register(MipsFunction::SRA, 0, 1, 2, shift_amount);
-		test_ee.execute(ops::process_instruction(instruction));
-
-		assert_eq!(test_ee.read_register(2), 0xffff_ffff_c000_0000);
+	#[test]
+	fn basic_sltu() {
+		unimplemented!();
 	}
 
 	#[test]
@@ -643,5 +823,29 @@ mod tests {
 		test_ee.execute(ops::process_instruction(instruction));
 
 		assert_eq!(test_ee.read_register(2), 0);
+	}
+
+	#[test]
+	fn basic_sra() {
+		let input: u32 = 0b1 << 31;
+		let shift_amount = 1;
+		let mut test_ee = EECore::new();
+
+		test_ee.write_register(1, input.s_ext());
+
+		let instruction = ops::build_op_register(MipsFunction::SRA, 0, 1, 2, shift_amount);
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert_eq!(test_ee.read_register(2), 0xffff_ffff_c000_0000);
+	}
+
+	#[test]
+	fn basic_srl() {
+		unimplemented!()
+	}
+
+	#[test]
+	fn basic_subu() {
+		unimplemented!();
 	}
 }

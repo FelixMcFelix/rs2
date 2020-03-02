@@ -361,7 +361,7 @@ impl EECore {
 		}
 
 		let dual_issue = self.dual_issue;
-		let will_jump = self.branch_delay_slot_active.is_some();
+		let might_jump = self.branch_delay_slot_active.is_some();
 
 		let pc = self.pc_register;
 		trace!("PC: {:08x}", self.pc_register);
@@ -376,8 +376,8 @@ impl EECore {
 
 		if dual_issue {
 			trace!("PC: {:08x}", self.pc_register);
-			let i2 = if will_jump {
-				LittleEndian::read_u32(self.read_memory(pc, OPCODE_LENGTH_BYTES).unwrap())
+			let i2 = if might_jump {
+				LittleEndian::read_u32(self.read_memory(self.pc_register, OPCODE_LENGTH_BYTES).unwrap())
 			} else {
 				i2
 			};
@@ -405,6 +405,8 @@ impl EECore {
 
 		if !branch_result.contains(BranchResult::NULLIFIED) {
 			(instruction.action)(self, &instruction);
+		} else {
+			trace!("Nullified...");
 		}
 
 		if !(branch_result.contains(BranchResult::BRANCHED) || self.excepted_this_cycle) {

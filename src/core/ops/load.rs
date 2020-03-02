@@ -13,11 +13,6 @@ use crate::{
 use std::mem::size_of;
 use super::instruction::Instruction;
 
-pub fn mflo(cpu: &mut EECore, data: &OpCode) {
-	// LO -> GPR[rd]
-	cpu.write_register(data.r_get_destination(), cpu.read_lo());
-}
-
 pub fn lb(cpu: &mut EECore, data: &OpCode) {
 	// FIXME: break this code out of several functions...
 	let offset: u32 = data.i_get_immediate_signed().s_ext();
@@ -63,6 +58,25 @@ pub fn ld(cpu: &mut EECore, data: &OpCode) {
 	}
 }
 
+pub fn lhu(cpu: &mut EECore, data: &OpCode) {
+	// FIXME: break this code out of several functions...
+	let offset: u32 = data.i_get_immediate_signed().s_ext();
+	let v_addr = (cpu.read_register(data.ri_get_source()) as u32).wrapping_add(offset);
+
+	// FIXME: make size info part of address resolution.
+	if v_addr & 0b1 != 0 {
+		cpu.throw_l1_exception(L1Exception::AddressErrorFetchLoad(v_addr));
+		return;
+	}
+
+	let loc = cpu.read_memory(v_addr as u32, size_of::<u16>())
+		.map(LittleEndian::read_u16);
+
+	if let Some(loc) = loc {
+		cpu.write_register(data.ri_get_target(), loc.z_ext());
+	}
+}
+
 pub fn lw(cpu: &mut EECore, data: &OpCode) {
 	// FIXME: break this code out of several functions...
 	let offset: u32 = data.i_get_immediate_signed().s_ext();
@@ -90,6 +104,16 @@ pub fn lui(cpu: &mut EECore, data: &OpCode) {
 	cpu.write_register(data.ri_get_target(), (v << 16) as u64);
 }
 
+pub fn mfhi(cpu: &mut EECore, data: &OpCode) {
+	// HI -> GPR[rd]
+	cpu.write_register(data.r_get_destination(), cpu.read_hi());
+}
+
+pub fn mflo(cpu: &mut EECore, data: &OpCode) {
+	// LO -> GPR[rd]
+	cpu.write_register(data.r_get_destination(), cpu.read_lo());
+}
+
 #[cfg(test)]
 mod test {
 	use super::*;
@@ -104,20 +128,6 @@ mod test {
 		},
 		memory::constants::*,
 	};
-
-	#[test]
-	fn basic_mflo() {
-		let lo: u64 = 0x1234_5678_abcd_ef90;
-
-		let mut test_ee = EECore::new();
-		test_ee.write_lo(lo);
-
-		let instruction = ops::build_op_register(MipsFunction::MFLo, 0, 0, 1, 0);
-
-		test_ee.execute(ops::process_instruction(instruction));
-
-		assert_eq!(test_ee.read_register(1), lo);
-	}
 
 	#[test]
 	fn basic_lb() {
@@ -168,6 +178,11 @@ mod test {
 	}
 
 	#[test]
+	fn basic_lhu() {
+		unimplemented!();
+	}
+
+	#[test]
 	fn basic_lw() {
 		let offset: i16 = 0;
 		let read_val: u32 = 0x90ab_cdef;
@@ -195,5 +210,33 @@ mod test {
 		test_ee.execute(ops::process_instruction(instruction));
 
 		assert_eq!(test_ee.read_register(1) >> 16, in_1 as u64);
+	}
+
+	#[test]
+	fn basic_mfhi() {
+		let hi: u64 = 0x1234_5678_abcd_ef90;
+
+		let mut test_ee = EECore::new();
+		test_ee.write_hi(hi);
+
+		let instruction = ops::build_op_register(MipsFunction::MFHi, 0, 0, 1, 0);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert_eq!(test_ee.read_register(1), hi);
+	}
+
+	#[test]
+	fn basic_mflo() {
+		let lo: u64 = 0x1234_5678_abcd_ef90;
+
+		let mut test_ee = EECore::new();
+		test_ee.write_lo(lo);
+
+		let instruction = ops::build_op_register(MipsFunction::MFLo, 0, 0, 1, 0);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert_eq!(test_ee.read_register(1), lo);
 	}
 }

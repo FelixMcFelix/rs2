@@ -53,5 +53,12 @@ fn physical_address_mapped_by_kseg_0_1() {
 
 #[test]
 fn branch_delay_active_with_dual_issue_makes_two_reads() {
+	// NOP <- fires     C1
+	// J <- fires       C1
+	// NOP <- fires     C2
+	// LUI <- not fires
+	// ...
+	// LUI <- fires     C2 (jump target)
+	// ORI not seen     C3
 	unimplemented!()
 }

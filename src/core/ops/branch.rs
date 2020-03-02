@@ -30,6 +30,18 @@ pub fn bgez(cpu: &mut EECore, data: &OpCode) {
 	cpu.branch(data, inner_bne as BranchAction, cond as u32);
 }
 
+pub fn bgtz(cpu: &mut EECore, data: &OpCode) {
+	// If GPR[rs]>0, then apply offset to current PC as in BNE.
+	let cond = cpu.read_register(data.ri_get_source()) as i64 > 0;
+	cpu.branch(data, inner_bne as BranchAction, cond as u32);
+}
+
+pub fn blez(cpu: &mut EECore, data: &OpCode) {
+	// If GPR[rs]<=0, then apply offset to current PC as in BNE.
+	let cond = cpu.read_register(data.ri_get_source()) as i64 <= 0;
+	cpu.branch(data, inner_bne as BranchAction, cond as u32);
+}
+
 pub fn bltz(cpu: &mut EECore, data: &OpCode) {
 	// If GPR[rs]<0, then apply offset to current PC as in BNE.
 	let cond = (cpu.read_register(data.ri_get_source()) as i64) < 0;
@@ -291,10 +303,20 @@ mod tests {
 	}
 
 	#[test]
+	fn basic_blez() {
+		unimplemented!();
+	}
+
+	#[test]
+	fn basic_bgtz() {
+		unimplemented!();
+	}
+
+	#[test]
 	fn basic_break_i() {
 		// Should literally just throw an exception.
 		let mut test_ee = EECore::new();
-		
+
 		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
 			ops::build_op_register(MipsFunction::Break, 0, 0, 0, 0),
 		]));
