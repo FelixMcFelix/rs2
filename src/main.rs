@@ -9,6 +9,7 @@ use std::{
 };
 
 pub mod core;
+pub mod debugger;
 pub mod memory;
 pub mod utils;
 
@@ -34,7 +35,7 @@ fn main() {
 			let mut s = String::new();
 			println!("Stepped execution: press enter to cycle.");
 			loop {
-				let _ = stdin.read_line(&mut s);
+				// let _ = stdin.read_line(&mut s);
 				ee_core.cycle();
 			}
 		}

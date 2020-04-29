@@ -14,9 +14,7 @@ use std::mem::size_of;
 use super::instruction::Instruction;
 
 pub fn lb(cpu: &mut EECore, data: &OpCode) {
-	// FIXME: break this code out of several functions...
-	let offset: u32 = data.i_get_immediate_signed().s_ext();
-	let v_addr = (cpu.read_register(data.ri_get_source()) as u32).wrapping_add(offset);
+	let v_addr = v_addr_with_offset(cpu, data);
 
 	let loc = cpu.read_memory(v_addr as u32, size_of::<u8>())
 		.map(|buf| buf[0]);
@@ -27,9 +25,7 @@ pub fn lb(cpu: &mut EECore, data: &OpCode) {
 }
 
 pub fn lbu(cpu: &mut EECore, data: &OpCode) {
-	// FIXME: break this code out of several functions...
-	let offset: u32 = data.i_get_immediate_signed().s_ext();
-	let v_addr = (cpu.read_register(data.ri_get_source()) as u32).wrapping_add(offset);
+	let v_addr = v_addr_with_offset(cpu, data);
 
 	let loc = cpu.read_memory(v_addr as u32, size_of::<u8>())
 		.map(|buf| buf[0]);
@@ -40,9 +36,7 @@ pub fn lbu(cpu: &mut EECore, data: &OpCode) {
 }
 
 pub fn ld(cpu: &mut EECore, data: &OpCode) {
-	// FIXME: break this code out of several functions...
-	let offset: u32 = data.i_get_immediate_signed().s_ext();
-	let v_addr = (cpu.read_register(data.ri_get_source()) as u32).wrapping_add(offset);
+	let v_addr = v_addr_with_offset(cpu, data);
 
 	// FIXME: make size info part of address resolution.
 	if v_addr & 0b111 != 0 {
@@ -59,9 +53,7 @@ pub fn ld(cpu: &mut EECore, data: &OpCode) {
 }
 
 pub fn lhu(cpu: &mut EECore, data: &OpCode) {
-	// FIXME: break this code out of several functions...
-	let offset: u32 = data.i_get_immediate_signed().s_ext();
-	let v_addr = (cpu.read_register(data.ri_get_source()) as u32).wrapping_add(offset);
+	let v_addr = v_addr_with_offset(cpu, data);
 
 	// FIXME: make size info part of address resolution.
 	if v_addr & 0b1 != 0 {
@@ -78,11 +70,7 @@ pub fn lhu(cpu: &mut EECore, data: &OpCode) {
 }
 
 pub fn lw(cpu: &mut EECore, data: &OpCode) {
-	// FIXME: break this code out of several functions...
-	let offset: u32 = data.i_get_immediate_signed().s_ext();
-	let v_addr = (cpu.read_register(data.ri_get_source()) as u32).wrapping_add(offset);
-
-	trace!("{:08x}", v_addr);
+	let v_addr = v_addr_with_offset(cpu, data);
 
 	// FIXME: make size info part of address resolution.
 	if v_addr & 0b11 != 0 {

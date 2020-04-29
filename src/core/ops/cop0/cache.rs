@@ -1,8 +1,11 @@
-use crate::core::{
-	cop0::Register,
-	ops::instruction::Instruction,
-	pipeline::*,
-	EECore,
+use crate::{
+	core::{
+		cop0::Register,
+		ops::instruction::Instruction,
+		pipeline::*,
+		EECore,
+	},
+	utils::*,
 };
 
 pub fn ixltg(cpu: &mut EECore, data: &OpCode) {
@@ -18,9 +21,7 @@ pub fn ixltg(cpu: &mut EECore, data: &OpCode) {
 	// which is ysed to populate bitfields of COP0
 
 	// sign extend offset, add base pointer.
-	let offset = i32::from(data.i_get_immediate()) as u32;
-	let _v_addr = (cpu.read_register(data.ri_get_source()) as u32)
-		.wrapping_add(offset);
+	let _v_addr = v_addr_with_offset(cpu, data);
 
 	// FIXME: Need to perform address translation (which may trigger page fault etc.)
 

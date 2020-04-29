@@ -57,8 +57,7 @@ pub fn bne(cpu: &mut EECore, data: &OpCode) {
 fn inner_bne(cpu: &mut EECore, data: &BranchOpCode) -> BranchResult {
 	// Add immediate to current PC value.
 	if data.temp != 0 {
-		let offset: u32 = data.i_get_immediate().s_ext();
-		cpu.pc_register = cpu.pc_register.wrapping_add(offset << 2);
+		cpu.pc_register = v_addr_with_offset_branch(cpu, data);
 		BranchResult::BRANCHED
 	} else {
 		BranchResult::empty()
@@ -74,8 +73,7 @@ pub fn bnel(cpu: &mut EECore, data: &OpCode) {
 fn inner_bnel(cpu: &mut EECore, data: &BranchOpCode) -> BranchResult {
 	// Add immediate to current PC value.
 	if data.temp != 0 {
-		let offset: u32 = data.i_get_immediate().s_ext();
-		cpu.pc_register = cpu.pc_register.wrapping_add(offset << 2);
+		cpu.pc_register = v_addr_with_offset_branch(cpu, data);
 		BranchResult::BRANCHED
 	} else {
 		BranchResult::NULLIFIED

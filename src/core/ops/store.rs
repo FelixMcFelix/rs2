@@ -13,13 +13,7 @@ use super::instruction::Instruction;
 pub fn sb(cpu: &mut EECore, data: &OpCode) {
 	// mem[GPR[rs] + signed(imm)] <- (GPR[rt] as 32)
 	let to_store = cpu.read_register(data.ri_get_target()) as u8;
-	let offset: u32 = data.i_get_immediate_signed().s_ext();
-	let v_addr = (cpu.read_register(data.ri_get_source()) as u32).wrapping_add(offset);
-
-	trace!("I want to store {} in v_addr {:08x}",
-		to_store,
-		v_addr,
-	);
+	let v_addr = v_addr_with_offset(cpu, data);
 
 	if let Some(loc) = cpu.read_memory_mut(v_addr as u32, size_of::<u32>()) {
 		loc[0] = to_store;
@@ -29,19 +23,13 @@ pub fn sb(cpu: &mut EECore, data: &OpCode) {
 pub fn sw(cpu: &mut EECore, data: &OpCode) {
 	// mem[GPR[rs] + signed(imm)] <- (GPR[rt] as 32)
 	let to_store = cpu.read_register(data.ri_get_target()) as u32;
-	let offset: u32 = data.i_get_immediate_signed().s_ext();
-	let v_addr = (cpu.read_register(data.ri_get_source()) as u32).wrapping_add(offset);
+	let v_addr = v_addr_with_offset(cpu, data);
 
 	// FIXME: make size info part of address resolution.
 	if v_addr & 0b11 != 0 {
 		cpu.throw_l1_exception(L1Exception::AddressErrorStore(v_addr));
 		return;
 	}
-
-	trace!("I want to store {} in v_addr {:08x}",
-		to_store,
-		v_addr,
-	);
 
 	if let Some(loc) = cpu.read_memory_mut(v_addr as u32, size_of::<u32>()) {
 		LittleEndian::write_u32(loc, to_store);
@@ -51,19 +39,13 @@ pub fn sw(cpu: &mut EECore, data: &OpCode) {
 pub fn sd(cpu: &mut EECore, data: &OpCode) {
 	// mem[GPR[rs] + signed(imm)] <- (GPR[rt] as 64)
 	let to_store = cpu.read_register(data.ri_get_target());
-	let offset: u32 = data.i_get_immediate_signed().s_ext();
-	let v_addr = (cpu.read_register(data.ri_get_source()) as u32).wrapping_add(offset);
+	let v_addr = v_addr_with_offset(cpu, data);
 
 	// FIXME: make size info part of address resolution.
 	if v_addr & 0b111 != 0 {
 		cpu.throw_l1_exception(L1Exception::AddressErrorStore(v_addr));
 		return;
 	}
-
-	trace!("I want to store {} in v_addr {:08x}",
-		to_store,
-		v_addr,
-	);
 
 	if let Some(loc) = cpu.read_memory_mut(v_addr as u32, size_of::<u64>()) {
 		LittleEndian::write_u64(loc, to_store);

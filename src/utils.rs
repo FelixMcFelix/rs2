@@ -2,7 +2,11 @@ use byteorder::{
 	ByteOrder,
 	LittleEndian,
 };
-use crate::core::EECore;
+use crate::core::{
+	ops::instruction::Instruction,
+	pipeline::*,
+	EECore,
+};
 
 pub fn install_and_run_program(cpu: &mut EECore, program: Vec<u8>) {
 	let duration = program.len() / 4;
@@ -21,6 +25,18 @@ pub fn instructions_to_bytes(program: &[u32]) -> Vec<u8> {
 	LittleEndian::write_u32_into(&program[..], &mut program_bytes[..]);
 
 	program_bytes
+}
+
+#[inline(always)]
+pub fn v_addr_with_offset(cpu: &EECore, data: &OpCode) -> u32 {
+	let offset: u32 = data.i_get_immediate_signed().s_ext();
+	(cpu.read_register(data.ri_get_source()) as u32).wrapping_add(offset)
+}
+
+#[inline(always)]
+pub fn v_addr_with_offset_branch(cpu: &EECore, data: &BranchOpCode) -> u32 {
+	let offset: u32 = data.i_get_immediate_signed().s_ext();
+	cpu.pc_register.wrapping_add(offset << 2)
 }
 
 pub trait SignExtend<T> {
