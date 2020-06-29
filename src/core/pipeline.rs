@@ -49,6 +49,16 @@ impl Default for OpCode {
 	}
 }
 
+impl std::fmt::Debug for OpCode {
+	fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+		fmt.debug_struct("OpCode")
+			.field("raw", &format!("{:032b}", self.raw))
+			.field("delay", &self.delay)
+			.field("action", &"<pointer>")
+			.finish()
+	}
+}
+
 impl Instruction for OpCode {
 	#[inline]
 	fn get_opcode(&self) -> u8 {

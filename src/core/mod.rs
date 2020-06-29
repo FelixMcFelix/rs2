@@ -82,34 +82,6 @@ impl EECore {
 		self.memory.set_bios(bios);
 	}
 
-	// So, The EE Core has 4 pipelines (6-stage) for instructions to be executed along.
-	// Notably, the processor attempts to read and decode two instructions per clock cycle,
-	// and performs handoff at the start. If both instructions fight over the same pipeline,
-	// the second instruction is paused.
-
-	// QUESTION: does each stage correspond to a clock signal? Particularly wrt. "phases".
-
-	// NOTE: FPUs have different pipeline design (COP-0/COP-1)
-
-	// Are I, Q, R stages shared between pipelines? i.e. specialisation occurs after R?
-
-	// Figure 1-4 shows this clearly, there are two logical pipes. Stalled instructions are held between Q and R.
-	// The physical pipes can belong to one or both logical pipes.
-	// Moreover, some instructions need multiple PHYSICAL pipes (but one logical) (COP0/1 Move and operate)...
-	// Aside from data-deps, some instruction pairs are illegal (branch+branch, branch+eret, and so on.)
-
-	// Let me think... do these "six stages" all somehow take place sequentially in one clock cycle?
-	// If stalling happens between Q -> R, ... oh.
-
-	// ...except I don't CARE about queueing, branch prediction ect, which is what these are ALL ABOUT!
-
-	// THINK bout register fetches (some need specificity over hi/lo bytes)
-
-	// PS2 is a little-endian system. I suppose I need to care about this on the off chance that SOMEONE runs Big-Endian, somewhere...
-	// Okay, how do Hi/Lo accesses work when handling different datatypes?
-	// Loads + stores for datatypes demand struct-alignment in memory, otherwise an exception is thrown.
-	// Misaligned data can be handled through specific instructions...
-
 	/// Reads a value from the specified register.
 	/// Note, register R0 will always return 0.
 	pub fn read_register(&self, index: u8) -> u64 {
