@@ -88,8 +88,8 @@ pub fn lw(cpu: &mut EECore, data: &OpCode) {
 
 pub fn lui(cpu: &mut EECore, data: &OpCode) {
 	// load sign extended shifted value of immediate into rt.
-	let v = i64::from(data.i_get_immediate());
-	cpu.write_register(data.ri_get_target(), (v << 16) as u64);
+	let v: u64 = data.i_get_immediate().s_ext();
+	cpu.write_register(data.ri_get_target(), v << 16);
 }
 
 pub fn mfhi(cpu: &mut EECore, data: &OpCode) {
@@ -167,7 +167,18 @@ mod test {
 
 	#[test]
 	fn basic_lhu() {
-		unimplemented!();
+		let offset: i16 = 0;
+		let read_val: u16 = 0xfade;
+
+		let mut test_ee = EECore::new();
+
+		test_ee.write_register(1, KSEG1_START.z_ext());
+		test_ee.write_memory(KSEG1_START, &read_val.to_le_bytes());
+		let instruction = ops::build_op_immediate(MipsOpcode::LHU, 1, 2, offset as u16);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert_eq!(test_ee.read_register(2), read_val.z_ext());
 	}
 
 	#[test]
@@ -197,7 +208,21 @@ mod test {
 
 		test_ee.execute(ops::process_instruction(instruction));
 
-		assert_eq!(test_ee.read_register(1) >> 16, in_1 as u64);
+		assert_eq!(test_ee.read_register(1) >> 16, in_1.s_ext());
+	}
+
+	#[test]
+	fn lui_s_ext() {
+		// Place a 16-bit value into bits 32..16.
+		let in_1: i16 = -1;
+
+		let mut test_ee = EECore::new();
+
+		let instruction = ops::build_op_immediate(MipsOpcode::LUI, 0, 1, in_1 as u16);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert_eq!(test_ee.read_register(1), ((in_1 as u32) << 16).s_ext());
 	}
 
 	#[test]

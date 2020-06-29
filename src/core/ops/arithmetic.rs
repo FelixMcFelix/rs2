@@ -629,7 +629,40 @@ mod tests {
 
 	#[test]
 	fn basic_movn() {
-		unimplemented!();
+		let base_address_upper = 0x1234;
+		let base_address_lower = 0x5678;
+
+		let src = 1;
+		let dest = 2;
+		let cond_reg = 3;
+
+		// positive case
+		let mut test_ee = EECore::new();
+
+		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
+			ops::build_op_immediate(MipsOpcode::LUI, 0, src, base_address_upper),
+			ops::build_op_immediate(MipsOpcode::OrI, src, src, base_address_lower),
+
+			ops::build_op_immediate(MipsOpcode::LUI, 0, cond_reg, 1),
+
+			ops::build_op_register(MipsFunction::MovN, src, cond_reg, dest, 0),
+		]));
+
+		assert_eq!(test_ee.read_register(src), test_ee.read_register(dest));
+
+		// negative case
+		let mut test_ee = EECore::new();
+
+		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
+			ops::build_op_immediate(MipsOpcode::LUI, 0, src, base_address_upper),
+			ops::build_op_immediate(MipsOpcode::OrI, src, src, base_address_lower),
+
+			ops::build_op_immediate(MipsOpcode::LUI, 0, cond_reg, 0),
+
+			ops::build_op_register(MipsFunction::MovN, src, cond_reg, dest, 0),
+		]));
+
+		assert_ne!(test_ee.read_register(src), test_ee.read_register(dest));
 	}
 
 	#[test]
@@ -740,12 +773,60 @@ mod tests {
 
 	#[test]
 	fn basic_slt() {
-		unimplemented!();
+		let in_1 = -1;
+		let in_2 = 256;
+		let in_3 = 512;
+
+		let lhs_r = 1;
+		let rhs_r = 2;
+		let dest = 3;
+
+		let mut test_ee = EECore::new();
+		test_ee.write_register(lhs_r, in_1.s_ext());
+		test_ee.write_register(rhs_r, in_2.s_ext());
+
+		// Test positive case.
+		let instruction = ops::build_op_register(MipsFunction::SLT, lhs_r, rhs_r, dest, 0);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert_eq!(test_ee.read_register(dest), 1);
+
+		// Test negative case.
+		test_ee.write_register(lhs_r, in_3.s_ext());
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert_eq!(test_ee.read_register(dest), 0);
 	}
 
 	#[test]
 	fn basic_sltu() {
-		unimplemented!();
+		let in_1 = u64::MAX - 2;
+		let in_2 = u64::MAX - 1;
+		let in_3 = u64::MAX;
+
+		let lhs_r = 1;
+		let rhs_r = 2;
+		let dest = 3;
+
+		let mut test_ee = EECore::new();
+		test_ee.write_register(lhs_r, in_1);
+		test_ee.write_register(rhs_r, in_2);
+
+		// Test positive case.
+		let instruction = ops::build_op_register(MipsFunction::SLTU, lhs_r, rhs_r, dest, 0);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert_eq!(test_ee.read_register(dest), 1);
+
+		// Test negative case.
+		test_ee.write_register(lhs_r, in_3);
+
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert_eq!(test_ee.read_register(dest), 0);
 	}
 
 	#[test]
@@ -841,11 +922,31 @@ mod tests {
 
 	#[test]
 	fn basic_srl() {
-		unimplemented!()
+		let input: u32 = 0b1 << 31;
+		let shift_amount = 1;
+		let mut test_ee = EECore::new();
+
+		test_ee.write_register(1, input.s_ext());
+
+		let instruction = ops::build_op_register(MipsFunction::SRL, 0, 1, 2, shift_amount);
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert_eq!(test_ee.read_register(2), 0x0000_0000_4000_0000);
 	}
 
 	#[test]
 	fn basic_subu() {
-		unimplemented!();
+		let i1 = (u32::MAX as u64) + 100;
+		let i2 = (u32::MAX as u64) + 57;
+
+		let mut test_ee = EECore::new();
+
+		test_ee.write_register(1, i1);
+		test_ee.write_register(2, i2);
+
+		let instruction = ops::build_op_register(MipsFunction::SubU, 1, 2, 3, 0);
+		test_ee.execute(ops::process_instruction(instruction));
+
+		assert_eq!(test_ee.read_register(3), i1 - i2);
 	}
 }

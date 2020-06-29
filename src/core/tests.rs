@@ -1,3 +1,11 @@
+use crate::{
+	core::ops::{
+		self,
+		constants::{MipsOpcode, MipsFunction},
+		NOP,
+	},
+	utils::*,
+};
 use super::{
 	*,
 	constants::*,
@@ -60,5 +68,39 @@ fn branch_delay_active_with_dual_issue_makes_two_reads() {
 	// ...
 	// LUI <- fires     C2 (jump target)
 	// ORI not seen     C3
-	unimplemented!()
+	let touched_register = 8;
+	let untouched_register = 8;
+
+	let offset_base = ((BIOS_START << 3) >> 5) as u32;
+
+	let mut test_ee = EECore::new();
+	test_ee.dual_issue = true;
+
+	install_and_run_program_for(&mut test_ee, instructions_to_bytes(&vec![
+		NOP,
+		ops::build_op_jump(MipsOpcode::J, offset_base + 8),
+
+		// + 2
+		// Fires
+		NOP,
+		// Doesn't
+		ops::build_op_immediate(MipsOpcode::LUI, 0, untouched_register, 1),
+
+		// + 4
+		NOP,
+		NOP,
+
+		// + 6
+		NOP,
+		NOP,
+
+		// + 8
+		ops::build_op_immediate(MipsOpcode::LUI, 0, touched_register, 0xabcd),
+		// PC points here at end (before OrI).
+		ops::build_op_immediate(MipsOpcode::OrI, touched_register, touched_register, 0xef12),
+	]), 2);
+
+	assert_eq!(format!("{:x}", test_ee.pc_register), format!("{:x}", BIOS_START + (9 << 2)));
+	assert_eq!(test_ee.read_register(untouched_register), 0);
+	assert_eq!(format!("{:016x}", test_ee.read_register(touched_register)), format!("{:016x}", 0xabcd_0000u32.s_ext()));
 }

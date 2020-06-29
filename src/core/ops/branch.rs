@@ -302,12 +302,62 @@ mod tests {
 
 	#[test]
 	fn basic_blez() {
-		unimplemented!();
+		let jump_offset: u16 = 0x00_f0;
+		let jump_target = (BIOS_START as u32) + 4 + ((jump_offset as u32) << 2);
+
+		let program = instructions_to_bytes(&vec![
+			ops::build_op_immediate(MipsOpcode::BLEZ, 1, 0, jump_offset),
+			NOP,
+		]);
+		
+		let mut jumping_ee = EECore::new();
+		let mut jump_z_ee = EECore::new();
+		let mut stay_gz_ee = EECore::new();
+
+		let jumping_val = -123;
+
+		jumping_ee.write_register(1, jumping_val.s_ext());
+		install_and_run_program(&mut jumping_ee, program.clone());
+
+		jump_z_ee.write_register(1, 0);
+		install_and_run_program(&mut jump_z_ee, program.clone());
+
+		stay_gz_ee.write_register(1, 1234.s_ext());
+		install_and_run_program(&mut stay_gz_ee, program);
+
+		assert_eq!(jumping_ee.pc_register, jump_target);
+		assert_eq!(jump_z_ee.pc_register, jump_target);
+		assert_eq!(stay_gz_ee.pc_register, (BIOS_START as u32) + 8);
 	}
 
 	#[test]
 	fn basic_bgtz() {
-		unimplemented!();
+		let jump_offset: u16 = 0x00_f0;
+		let jump_target = (BIOS_START as u32) + 4 + ((jump_offset as u32) << 2);
+
+		let program = instructions_to_bytes(&vec![
+			ops::build_op_immediate(MipsOpcode::BGTZ, 1, 0, jump_offset),
+			NOP,
+		]);
+		
+		let mut jumping_ee = EECore::new();
+		let mut stay_z_ee = EECore::new();
+		let mut stay_lz_ee = EECore::new();
+
+		let jumping_val = 123;
+
+		jumping_ee.write_register(1, jumping_val.s_ext());
+		install_and_run_program(&mut jumping_ee, program.clone());
+
+		stay_z_ee.write_register(1, 0);
+		install_and_run_program(&mut stay_z_ee, program.clone());
+
+		stay_lz_ee.write_register(1, (-1234).s_ext());
+		install_and_run_program(&mut stay_lz_ee, program);
+
+		assert_eq!(jumping_ee.pc_register, jump_target);
+		assert_eq!(stay_z_ee.pc_register, (BIOS_START as u32) + 8);
+		assert_eq!(stay_lz_ee.pc_register, (BIOS_START as u32) + 8);
 	}
 
 	#[test]

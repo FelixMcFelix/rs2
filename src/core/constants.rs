@@ -17,4 +17,4 @@ pub const EE_IMPL: u32  = 0x2e;
 pub const IOP_IMPL: u32 = 0x00;
 
 pub const EE_PRID: u32 = EE_IMPL << 8;
-pub const IOP_PRID: u32 = EE_IMPL << 8;
+pub const IOP_PRID: u32 = IOP_IMPL << 8;
