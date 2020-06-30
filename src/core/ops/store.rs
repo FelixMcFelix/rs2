@@ -5,10 +5,10 @@ use crate::{
 		pipeline::*,
 		EECore,
 	},
+	isa::mips::Instruction,
 	utils::*,
 };
 use std::mem::size_of;
-use super::instruction::Instruction;
 
 pub fn sb(cpu: &mut EECore, data: &OpCode) {
 	// mem[GPR[rs] + signed(imm)] <- (GPR[rt] as 32)
@@ -64,6 +64,14 @@ mod test {
 			self,
 			constants::*,
 		},
+		isa::mips::{
+			self,
+			ee::{CacheFunction, Cop0Function, Cop1Function},
+			Function as MipsFunction,
+			Instruction,
+			Opcode as MipsOpcode,
+			RegImmFunction,
+		},
 		memory::constants::*,
 		utils::*,
 	};
@@ -78,7 +86,7 @@ mod test {
 		test_ee.write_register(2, stored_data.s_ext());
 
 		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
-			ops::build_op_immediate(MipsOpcode::SB, 1, 2, 0),
+			mips::build_op_immediate(MipsOpcode::SB, 1, 2, 0),
 		]));
 
 		assert_eq!(test_ee.read_memory(KSEG1_START, 1).map(|d| d[0]), Some(stored_data));
@@ -94,7 +102,7 @@ mod test {
 		test_ee.write_register(2, stored_data.s_ext());
 
 		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
-			ops::build_op_immediate(MipsOpcode::SW, 1, 2, 0),
+			mips::build_op_immediate(MipsOpcode::SW, 1, 2, 0),
 		]));
 
 		assert_eq!(test_ee.read_memory(KSEG1_START, 4).map(|d| LittleEndian::read_u32(d)), Some(stored_data));
@@ -113,7 +121,7 @@ mod test {
 		let offset = -20;
 
 		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
-			ops::build_op_immediate(MipsOpcode::SW, 1, 2, offset as u16),
+			mips::build_op_immediate(MipsOpcode::SW, 1, 2, offset as u16),
 		]));
 
 		assert_eq!(test_ee.read_memory(base_pointer - 20, 4).map(|d| LittleEndian::read_u32(d)), Some(stored_data));
@@ -130,7 +138,7 @@ mod test {
 		test_ee.write_register(2, stored_data.s_ext());
 
 		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
-			ops::build_op_immediate(MipsOpcode::SW, 1, 2, 256),
+			mips::build_op_immediate(MipsOpcode::SW, 1, 2, 256),
 		]));
 
 		assert_eq!(test_ee.read_memory(base_pointer + 256, 4).map(|d| LittleEndian::read_u32(d)), Some(stored_data));
@@ -147,7 +155,7 @@ mod test {
 		test_ee.write_register(2, stored_data);
 
 		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
-			ops::build_op_immediate(MipsOpcode::SW, 1, 2, 0),
+			mips::build_op_immediate(MipsOpcode::SW, 1, 2, 0),
 		]));
 
 		assert!(test_ee.in_exception());
@@ -164,7 +172,7 @@ mod test {
 		test_ee.write_register(2, stored_data);
 
 		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
-			ops::build_op_immediate(MipsOpcode::SD, 1, 2, 0),
+			mips::build_op_immediate(MipsOpcode::SD, 1, 2, 0),
 		]));
 
 		assert_eq!(test_ee.read_memory(KSEG1_START, 8).map(|d| LittleEndian::read_u64(d)), Some(stored_data));
@@ -181,7 +189,7 @@ mod test {
 		test_ee.write_register(2, stored_data);
 
 		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
-			ops::build_op_immediate(MipsOpcode::SD, 1, 2, 256),
+			mips::build_op_immediate(MipsOpcode::SD, 1, 2, 256),
 		]));
 
 		assert_eq!(test_ee.read_memory(base_pointer + 256, 8).map(|d| LittleEndian::read_u64(d)), Some(stored_data));
@@ -200,7 +208,7 @@ mod test {
 		let offset: i16 = -24;
 
 		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
-			ops::build_op_immediate(MipsOpcode::SD, 1, 2, offset as u16),
+			mips::build_op_immediate(MipsOpcode::SD, 1, 2, offset as u16),
 		]));
 
 		assert_eq!(test_ee.read_memory(base_pointer - 24, 8).map(|d| LittleEndian::read_u64(d)), Some(stored_data));
@@ -217,7 +225,7 @@ mod test {
 		test_ee.write_register(2, stored_data);
 
 		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
-			ops::build_op_immediate(MipsOpcode::SD, 1, 2, 0),
+			mips::build_op_immediate(MipsOpcode::SD, 1, 2, 0),
 		]));
 
 		assert!(test_ee.in_exception());

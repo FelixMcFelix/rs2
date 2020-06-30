@@ -8,10 +8,10 @@ use crate::{
 		pipeline::*,
 		EECore,
 	},
+	isa::mips::Instruction,
 	utils::*,
 };
 use std::mem::size_of;
-use super::instruction::Instruction;
 
 pub fn swc1(cpu: &mut EECore, data: &OpCode) {
 	debug!("SWC1 not reading from Cop1 -- Writing zeroes!");

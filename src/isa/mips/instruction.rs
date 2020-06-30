@@ -1,9 +1,11 @@
+use super::{Function, Opcode};
+
 const OP_MASK: u32 = 0b0011_1111;
 const REGISTER_MASK: u32 = 0b0001_1111;
 const IMMEDIATE_MASK: u32 = 0xFF_FF;
 const JUMP_MASK: u32 = 0x03_FF_FF_FF;
 
-/// Add methods to a standard 32-bit MIPS instruction to extract inidividual data
+/// Add methods to a standard 32-bit MIPS instruction to extract individual data
 /// or parameters, without requiring extra space.
 pub trait Instruction {
 	fn get_opcode(&self) -> u8;
@@ -124,5 +126,81 @@ impl Instruction for u32 {
 	fn j_set_jump(&mut self, v: u32) {
 		*self &= !JUMP_MASK;
 		*self |= v;
+	}
+}
+
+#[inline]
+pub fn build_op_register(function: Function, source: u8, target: u8, destination: u8, shift_amount: u8) -> u32 {
+	build_op_register_custom(Opcode::Special, function as u8, source, target, destination, shift_amount)
+}
+
+#[inline]
+pub fn build_op_register_custom(opcode: Opcode, function: u8, source: u8, target: u8, destination: u8, shift_amount: u8) -> u32 {
+	let mut out = 0;
+
+	out.set_opcode(opcode as u8);
+	out.ri_set_source(source);
+	out.ri_set_target(target);
+	out.r_set_destination(destination);
+	out.r_set_shift_amount(shift_amount);
+	out.r_set_function(function);
+
+	out
+}
+
+#[inline]
+pub fn build_op_immediate(opcode: Opcode, source: u8, target: u8, immediate: u16) -> u32 {
+	let mut out = 0;
+
+	out.set_opcode(opcode as u8);
+	out.ri_set_source(source);
+	out.ri_set_target(target);
+	out.i_set_immediate(immediate);
+
+	out
+}
+
+/// Build a jump opcode.
+///
+/// Assumes that `jump_target` can be represented using 26 bits.
+#[inline]
+pub fn build_op_jump(opcode: Opcode, jump_target: u32) -> u32 {
+	let mut out = 0;
+
+	out.set_opcode(opcode as u8);
+	out.j_set_jump(jump_target);
+
+	out
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn build_register_op() {
+		const ADD_1_2_3: u32 = 0b000000_00001_00010_00011_00000_100000;
+		assert_eq!(
+			build_op_register(Function::Add, 1, 2, 3, 0),
+			ADD_1_2_3,
+		);
+	}
+
+	#[test]
+	fn build_immediate_op() {
+		const ADDI_1_2_256: u32 = 0b001000_00001_00010_0000000100000000;
+		assert_eq!(
+			build_op_immediate(Opcode::AddI, 1, 2, 256),
+			ADDI_1_2_256,
+		);
+	}
+
+	#[test]
+	fn build_jump_op() {
+		const J_256: u32 = 0b000010_00000000000000000100000000;
+		assert_eq!(
+			build_op_jump(Opcode::J, 256),
+			J_256,
+		);
 	}
 }

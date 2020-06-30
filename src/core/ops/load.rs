@@ -8,10 +8,10 @@ use crate::{
 		pipeline::*,
 		EECore,
 	},
+	isa::mips::Instruction,
 	utils::*,
 };
 use std::mem::size_of;
-use super::instruction::Instruction;
 
 pub fn lb(cpu: &mut EECore, data: &OpCode) {
 	let v_addr = v_addr_with_offset(cpu, data);
@@ -114,6 +114,14 @@ mod test {
 			self,
 			constants::*,
 		},
+		isa::mips::{
+			self,
+			ee::{CacheFunction, Cop0Function, Cop1Function},
+			Function as MipsFunction,
+			Instruction,
+			Opcode as MipsOpcode,
+			RegImmFunction,
+		},
 		memory::constants::*,
 	};
 
@@ -126,7 +134,7 @@ mod test {
 
 		test_ee.write_register(1, KSEG1_START.z_ext());
 		test_ee.write_memory(KSEG1_START, &[read_val]);
-		let instruction = ops::build_op_immediate(MipsOpcode::LB, 1, 2, offset as u16);
+		let instruction = mips::build_op_immediate(MipsOpcode::LB, 1, 2, offset as u16);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -142,7 +150,7 @@ mod test {
 
 		test_ee.write_register(1, KSEG1_START.z_ext());
 		test_ee.write_memory(KSEG1_START, &[read_val]);
-		let instruction = ops::build_op_immediate(MipsOpcode::LBU, 1, 2, offset as u16);
+		let instruction = mips::build_op_immediate(MipsOpcode::LBU, 1, 2, offset as u16);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -158,7 +166,7 @@ mod test {
 
 		test_ee.write_register(1, KSEG1_START.z_ext());
 		test_ee.write_memory(KSEG1_START, &read_val.to_le_bytes());
-		let instruction = ops::build_op_immediate(MipsOpcode::LD, 1, 2, offset as u16);
+		let instruction = mips::build_op_immediate(MipsOpcode::LD, 1, 2, offset as u16);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -174,7 +182,7 @@ mod test {
 
 		test_ee.write_register(1, KSEG1_START.z_ext());
 		test_ee.write_memory(KSEG1_START, &read_val.to_le_bytes());
-		let instruction = ops::build_op_immediate(MipsOpcode::LHU, 1, 2, offset as u16);
+		let instruction = mips::build_op_immediate(MipsOpcode::LHU, 1, 2, offset as u16);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -190,7 +198,7 @@ mod test {
 
 		test_ee.write_register(1, KSEG1_START.z_ext());
 		test_ee.write_memory(KSEG1_START, &read_val.to_le_bytes());
-		let instruction = ops::build_op_immediate(MipsOpcode::LW, 1, 2, offset as u16);
+		let instruction = mips::build_op_immediate(MipsOpcode::LW, 1, 2, offset as u16);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -204,7 +212,7 @@ mod test {
 
 		let mut test_ee = EECore::new();
 
-		let instruction = ops::build_op_immediate(MipsOpcode::LUI, 0, 1, in_1 as u16);
+		let instruction = mips::build_op_immediate(MipsOpcode::LUI, 0, 1, in_1 as u16);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -218,7 +226,7 @@ mod test {
 
 		let mut test_ee = EECore::new();
 
-		let instruction = ops::build_op_immediate(MipsOpcode::LUI, 0, 1, in_1 as u16);
+		let instruction = mips::build_op_immediate(MipsOpcode::LUI, 0, 1, in_1 as u16);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -232,7 +240,7 @@ mod test {
 		let mut test_ee = EECore::new();
 		test_ee.write_hi(hi);
 
-		let instruction = ops::build_op_register(MipsFunction::MFHi, 0, 0, 1, 0);
+		let instruction = mips::build_op_register(MipsFunction::MFHi, 0, 0, 1, 0);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -246,7 +254,7 @@ mod test {
 		let mut test_ee = EECore::new();
 		test_ee.write_lo(lo);
 
-		let instruction = ops::build_op_register(MipsFunction::MFLo, 0, 0, 1, 0);
+		let instruction = mips::build_op_register(MipsFunction::MFLo, 0, 0, 1, 0);
 
 		test_ee.execute(ops::process_instruction(instruction));
 

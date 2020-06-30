@@ -1,7 +1,9 @@
 use crate::{
-	core::ops::{
+	core::ops,
+	isa::mips::{
 		self,
-		constants::{MipsOpcode, MipsFunction},
+		Function as MipsFunction,
+		Opcode as MipsOpcode,
 		NOP,
 	},
 	utils::*,
@@ -79,13 +81,13 @@ fn branch_delay_active_with_dual_issue_makes_two_reads() {
 	install_and_run_program_for(&mut test_ee, instructions_to_bytes(&vec![
 		// Both in C1.
 		NOP,
-		ops::build_op_jump(MipsOpcode::J, offset_base + 8),
+		mips::build_op_jump(MipsOpcode::J, offset_base + 8),
 
 		// + 2
 		// Fires in C2.
 		NOP,
 		// Skipped.
-		ops::build_op_immediate(MipsOpcode::LUI, 0, untouched_register, 1),
+		mips::build_op_immediate(MipsOpcode::LUI, 0, untouched_register, 1),
 
 		// + 4
 		NOP,
@@ -97,9 +99,9 @@ fn branch_delay_active_with_dual_issue_makes_two_reads() {
 
 		// + 8
 		// Fires in C2.
-		ops::build_op_immediate(MipsOpcode::LUI, 0, touched_register, 0xabcd),
+		mips::build_op_immediate(MipsOpcode::LUI, 0, touched_register, 0xabcd),
 		// PC points here at end (before OrI).
-		ops::build_op_immediate(MipsOpcode::OrI, touched_register, touched_register, 0xef12),
+		mips::build_op_immediate(MipsOpcode::OrI, touched_register, touched_register, 0xef12),
 	]), 2);
 
 	assert_eq!(format!("{:x}", test_ee.pc_register), format!("{:x}", BIOS_START + (9 << 2)));

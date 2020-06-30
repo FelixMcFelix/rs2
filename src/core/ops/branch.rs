@@ -5,9 +5,9 @@ use crate::{
 		pipeline::*,
 		EECore,
 	},
+	isa::mips::Instruction,
 	utils::*,
 };
-use super::instruction::Instruction;
 
 const PC_HO_BITS: u32 = 0b1111 << 28;
 const PC_ALIGNED_BITS: u32 = 0b11;
@@ -147,6 +147,15 @@ mod tests {
 			self,
 			constants::*,
 		},
+		isa::mips::{
+			self,
+			ee::{CacheFunction, Cop0Function, Cop1Function},
+			Function as MipsFunction,
+			Instruction,
+			Opcode as MipsOpcode,
+			RegImmFunction,
+			NOP,
+		},
 		memory::constants::*,
 	};
 
@@ -160,7 +169,7 @@ mod tests {
 
 		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
 			NOP,
-			ops::build_op_jump(MipsOpcode::J, jump_offset),
+			mips::build_op_jump(MipsOpcode::J, jump_offset),
 		]));
 
 		assert_ne!(test_ee.pc_register, jump_target);
@@ -174,7 +183,7 @@ mod tests {
 		let jump_target = (BIOS_START as u32) + 4 + ((jump_offset as u32) << 2);
 
 		let program = instructions_to_bytes(&vec![
-			ops::build_op_immediate(MipsOpcode::BEq, 1, 2, jump_offset),
+			mips::build_op_immediate(MipsOpcode::BEq, 1, 2, jump_offset),
 			NOP,
 		]);
 		
@@ -201,7 +210,7 @@ mod tests {
 		let jump_target = (BIOS_START as u32) + 4 + ((jump_offset as u32) << 2);
 
 		let program = instructions_to_bytes(&vec![
-			ops::build_op_immediate(MipsOpcode::BNE, 1, 2, jump_offset),
+			mips::build_op_immediate(MipsOpcode::BNE, 1, 2, jump_offset),
 			NOP,
 		]);
 		
@@ -227,7 +236,7 @@ mod tests {
 		let jump_target = (BIOS_START as u32) + 4 - 20;
 
 		let program = instructions_to_bytes(&vec![
-			ops::build_op_immediate(MipsOpcode::BNE, 1, 2, jump_offset as u16),
+			mips::build_op_immediate(MipsOpcode::BNE, 1, 2, jump_offset as u16),
 			NOP,
 		]);
 
@@ -246,7 +255,7 @@ mod tests {
 		let jump_target = (BIOS_START as u32) + 4 + ((jump_offset as u32) << 2);
 
 		let program = instructions_to_bytes(&vec![
-			ops::build_op_immediate(MipsOpcode::RegImm, 1, RegImmFunction::BGEZ as u8, jump_offset),
+			mips::build_op_immediate(MipsOpcode::RegImm, 1, RegImmFunction::BGEZ as u8, jump_offset),
 			NOP,
 		]);
 		
@@ -276,7 +285,7 @@ mod tests {
 		let jump_target = (BIOS_START as u32) + 4 + ((jump_offset as u32) << 2);
 
 		let program = instructions_to_bytes(&vec![
-			ops::build_op_immediate(MipsOpcode::RegImm, 1, RegImmFunction::BLTZ as u8, jump_offset),
+			mips::build_op_immediate(MipsOpcode::RegImm, 1, RegImmFunction::BLTZ as u8, jump_offset),
 			NOP,
 		]);
 		
@@ -306,7 +315,7 @@ mod tests {
 		let jump_target = (BIOS_START as u32) + 4 + ((jump_offset as u32) << 2);
 
 		let program = instructions_to_bytes(&vec![
-			ops::build_op_immediate(MipsOpcode::BLEZ, 1, 0, jump_offset),
+			mips::build_op_immediate(MipsOpcode::BLEZ, 1, 0, jump_offset),
 			NOP,
 		]);
 		
@@ -336,7 +345,7 @@ mod tests {
 		let jump_target = (BIOS_START as u32) + 4 + ((jump_offset as u32) << 2);
 
 		let program = instructions_to_bytes(&vec![
-			ops::build_op_immediate(MipsOpcode::BGTZ, 1, 0, jump_offset),
+			mips::build_op_immediate(MipsOpcode::BGTZ, 1, 0, jump_offset),
 			NOP,
 		]);
 		
@@ -366,7 +375,7 @@ mod tests {
 		let mut test_ee = EECore::new();
 
 		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
-			ops::build_op_register(MipsFunction::Break, 0, 0, 0, 0),
+			mips::build_op_register(MipsFunction::Break, 0, 0, 0, 0),
 		]));
 
 		assert!(test_ee.in_exception());
@@ -384,8 +393,8 @@ mod tests {
 		let proof_of_delay = 0xa123;
 
 		let program = instructions_to_bytes(&vec![
-			ops::build_op_immediate(MipsOpcode::BEqL, 1, 2, jump_offset),
-			ops::build_op_immediate(MipsOpcode::OrI, 0, 4, proof_of_delay),
+			mips::build_op_immediate(MipsOpcode::BEqL, 1, 2, jump_offset),
+			mips::build_op_immediate(MipsOpcode::OrI, 0, 4, proof_of_delay),
 		]);
 		
 		let mut staying_ee = EECore::new();
@@ -418,8 +427,8 @@ mod tests {
 		let proof_of_delay = 0xa123;
 
 		let program = instructions_to_bytes(&vec![
-			ops::build_op_immediate(MipsOpcode::BNEL, 1, 2, jump_offset),
-			ops::build_op_immediate(MipsOpcode::OrI, 0, 4, proof_of_delay),
+			mips::build_op_immediate(MipsOpcode::BNEL, 1, 2, jump_offset),
+			mips::build_op_immediate(MipsOpcode::OrI, 0, 4, proof_of_delay),
 		]);
 		
 		let mut staying_ee = EECore::new();
@@ -449,7 +458,7 @@ mod tests {
 
 		let mut test_ee = EECore::new();
 		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
-			ops::build_op_jump(MipsOpcode::J, jump_offset),
+			mips::build_op_jump(MipsOpcode::J, jump_offset),
 			NOP,
 		]));
 
@@ -464,7 +473,7 @@ mod tests {
 		let mut test_ee = EECore::new();
 		test_ee.write_register(1, jump_dest as u64);
 		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
-			ops::build_op_register(MipsFunction::JR, 1, 0, 0, 0),
+			mips::build_op_register(MipsFunction::JR, 1, 0, 0, 0),
 			NOP,
 		]));
 
@@ -480,7 +489,7 @@ mod tests {
 		let mut test_ee = EECore::new();
 		test_ee.write_register(1, jump_dest as u64);
 		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
-			ops::build_op_register(MipsFunction::JaLR, 1, 0, 5, 0),
+			mips::build_op_register(MipsFunction::JaLR, 1, 0, 5, 0),
 			NOP,
 		]));
 
@@ -498,7 +507,7 @@ mod tests {
 		let mut test_ee = EECore::new();
 		let old_pc = test_ee.pc_register;
 		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
-			ops::build_op_jump(MipsOpcode::JaL, jump_offset),
+			mips::build_op_jump(MipsOpcode::JaL, jump_offset),
 			NOP,
 		]));
 
@@ -521,7 +530,7 @@ mod tests {
 		let mut test_ee = EECore::new();
 		test_ee.write_register(1, jump_dest as u64);
 		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
-			ops::build_op_register(MipsFunction::JR, 1, 0, 0, 0),
+			mips::build_op_register(MipsFunction::JR, 1, 0, 0, 0),
 			NOP,
 		]));
 
@@ -542,8 +551,8 @@ mod tests {
 		test_ee.write_register(2, in_2);
 
 		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
-			ops::build_op_jump(MipsOpcode::J, jump_offset),
-			ops::build_op_register(MipsFunction::Add, 1, 2, 3, 0),
+			mips::build_op_jump(MipsOpcode::J, jump_offset),
+			mips::build_op_register(MipsFunction::Add, 1, 2, 3, 0),
 		]));
 
 		assert_eq!(test_ee.read_register(3), in_1 + in_2);

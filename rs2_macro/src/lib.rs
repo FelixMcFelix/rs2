@@ -27,7 +27,7 @@ use syn::{
 /// ]);
 /// ```
 #[proc_macro]
-pub fn ops(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn mips_ops(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 	let parsed_input = parse_macro_input!(input as Expr);
 	let mut r_type_matches_tokens = None;
 	let mut ij_type_matches_tokens = None;
@@ -68,7 +68,7 @@ pub fn ops(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 			}
 
 			let raw_opcode = instruction.get_opcode();
-			let opcode = crate::core::ops::constants::MipsOpcode::from_u8(raw_opcode);
+			let opcode = crate::isa::mips::Opcode::from_u8(raw_opcode);
 
 			match opcode {
 				// R/switched instructions
@@ -113,7 +113,7 @@ fn r_type_matches(instructions: &ExprArray) -> proc_macro2::TokenStream {
 			match_parts.push(quote!{
 				Some(#op_code) => {
 					let raw_func = instruction.r_get_function();
-					let func = crate::core::ops::constants::MipsFunction::from_u8(raw_func);
+					let func = crate::isa::mips::Function::from_u8(raw_func);
 
 					match #op_codec(instruction) {
 						#r_type_matches_tokens

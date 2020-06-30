@@ -1,10 +1,10 @@
 use crate::{
 	core::{
 		cop0::Register,
-		ops::instruction::Instruction,
 		pipeline::*,
 		EECore,
 	},
+	isa::mips::Instruction,
 	utils::*,
 };
 
@@ -45,6 +45,13 @@ mod tests {
 				self,
 				constants::*,
 			},
+		},
+		isa::mips::{
+			ee::{CacheFunction, Cop0Function, Cop1Function},
+			Function as MipsFunction,
+			Instruction,
+			Opcode as MipsOpcode,
+			RegImmFunction,
 		},
 		memory::constants::*,
 	};

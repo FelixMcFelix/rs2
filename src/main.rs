@@ -11,6 +11,7 @@ use std::{
 pub mod core;
 pub mod debugger;
 pub mod memory;
+pub mod isa;
 pub mod utils;
 
 use crate::core::*;

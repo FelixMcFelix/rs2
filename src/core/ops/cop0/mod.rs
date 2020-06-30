@@ -1,15 +1,17 @@
 pub mod cache;
 
-use crate::core::{
-	cop0::{
-		Register,
-		Status,
+use crate::{
+	core::{
+		cop0::{
+			Register,
+			Status,
+		},
+		exceptions::L1Exception,
+		pipeline::*,
+		EECore,
 	},
-	exceptions::L1Exception,
-	pipeline::*,
-	EECore,
+	isa::mips::Instruction,
 };
-use super::instruction::Instruction;
 
 #[inline(always)]
 fn cop0_usable(cpu: &mut EECore) -> bool {
@@ -90,10 +92,16 @@ mod tests {
 				self,
 				Register,
 			},
-			ops::{
-				self,
-				constants::*,
-			},
+			ops,
+		},
+		isa::mips::{
+			self,
+			ee::*,
+			Function as MipsFunction,
+			Instruction,
+			Opcode as MipsOpcode,
+			RegImmFunction,
+			NOP,
 		},
 		memory::constants::*,
 		utils::*,
@@ -104,7 +112,7 @@ mod tests {
 		let mut test_ee = EECore::default();
 
 		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
-			ops::build_op_register_custom(MipsOpcode::Cop0, 0, MF0, 1, Register::PRId as u8, 0),
+			mips::build_op_register_custom(MipsOpcode::Cop0, 0, MF0, 1, Register::PRId as u8, 0),
 		]));
 
 		assert_eq!(test_ee.read_register(1), EE_PRID as u64);
@@ -118,7 +126,7 @@ mod tests {
 		test_ee.write_register(1, test_val as u64);
 
 		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
-			ops::build_op_register_custom(MipsOpcode::Cop0, 0, MT0, 1, Register::EntryHi as u8, 0),
+			mips::build_op_register_custom(MipsOpcode::Cop0, 0, MT0, 1, Register::EntryHi as u8, 0),
 		]));
 
 		assert_eq!(test_ee.read_cop0_direct(Register::EntryHi as u8), test_val);
@@ -145,7 +153,7 @@ mod tests {
 		test_ee.write_cop0(Register::EntryLo1 as u8, cop0::entry_lo_from_parts(false, pfn2, 2, true, true, true));
 
 		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
-			ops::build_op_register_custom(MipsOpcode::Cop0, C0Function::TlbWI as u8, C0, 1, Register::EntryHi as u8, 0),
+			mips::build_op_register_custom(MipsOpcode::Cop0, C0Function::TlbWI as u8, C0, 1, Register::EntryHi as u8, 0),
 		]));
 
 		let line = test_ee.mmu.tlb.lines[index as usize];
@@ -186,7 +194,7 @@ mod tests {
 			NOP,
 			NOP,
 			NOP,
-			ops::build_op_register_custom(MipsOpcode::Cop0, C0Function::TlbWR as u8, C0, 1, Register::EntryHi as u8, 0),
+			mips::build_op_register_custom(MipsOpcode::Cop0, C0Function::TlbWR as u8, C0, 1, Register::EntryHi as u8, 0),
 		]));
 
 		// NOTE: random changed after executing TlbWR
@@ -212,7 +220,7 @@ mod tests {
 		test_ee.write_cop0_direct(Register::Status as u8, status.bits());
 
 		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
-			ops::build_op_register_custom(MipsOpcode::Cop0, 0, MF0, 1, Register::PRId as u8, 0),
+			mips::build_op_register_custom(MipsOpcode::Cop0, 0, MF0, 1, Register::PRId as u8, 0),
 		]));
 
 		assert!(!test_ee.in_exception());
@@ -224,7 +232,7 @@ mod tests {
 		let mut forbidden_ee = EECore::new();
 
 		let program = instructions_to_bytes(&vec![
-			ops::build_op_register_custom(MipsOpcode::Cop0, 0, MF0, 1, Register::PRId as u8, 0),
+			mips::build_op_register_custom(MipsOpcode::Cop0, 0, MF0, 1, Register::PRId as u8, 0),
 		]);
 
 		// Tricky test. Need to map some space in USEG to SPRAM, write a program there...

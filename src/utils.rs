@@ -2,10 +2,18 @@ use byteorder::{
 	ByteOrder,
 	LittleEndian,
 };
-use crate::core::{
-	ops::instruction::Instruction,
-	pipeline::*,
-	EECore,
+use crate::{
+	core::{
+		pipeline::*,
+		EECore,
+	},
+	isa::mips::{
+		ee::{CacheFunction, Cop0Function, Cop1Function},
+		Function as MipsFunction,
+		Instruction,
+		Opcode as MipsOpcode,
+		RegImmFunction,
+	},
 };
 
 pub fn install_and_run_program(cpu: &mut EECore, program: Vec<u8>) {

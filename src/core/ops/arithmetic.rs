@@ -4,9 +4,9 @@ use crate::{
 		pipeline::*,
 		EECore,
 	},
+	isa::mips::Instruction,
 	utils::*,
 };
-use super::instruction::Instruction;
 
 pub fn add(cpu: &mut EECore, data: &OpCode) {
 	// NOTE: do this work in signed space of proper size,
@@ -231,9 +231,19 @@ pub fn subu(cpu: &mut EECore, data: &OpCode) {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::core::ops::{
-		self,
-		constants::*,
+	use crate::{
+		core::ops::{
+			self,
+			constants::*,
+		},
+		isa::mips::{
+			self,
+			ee::{CacheFunction, Cop0Function, Cop1Function},
+			Function as MipsFunction,
+			Instruction,
+			Opcode as MipsOpcode,
+			RegImmFunction,
+		},
 	};
 
 	#[test]
@@ -246,7 +256,7 @@ mod tests {
 		test_ee.write_register(1, in_1);
 		test_ee.write_register(2, in_2);
 
-		let instruction = ops::build_op_register(MipsFunction::Add, 1, 2, 3, 0);
+		let instruction = mips::build_op_register(MipsFunction::Add, 1, 2, 3, 0);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -263,7 +273,7 @@ mod tests {
 		test_ee.write_register(1, in_1);
 		test_ee.write_register(2, in_2 as u64);
 
-		let instruction = ops::build_op_register(MipsFunction::Add, 1, 2, 3, 0);
+		let instruction = mips::build_op_register(MipsFunction::Add, 1, 2, 3, 0);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -281,7 +291,7 @@ mod tests {
 		test_ee.write_register(1, in_1 as u64);
 		test_ee.write_register(2, in_2);
 
-		let instruction = ops::build_op_register(MipsFunction::Add, 1, 2, 3, 0);
+		let instruction = mips::build_op_register(MipsFunction::Add, 1, 2, 3, 0);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -298,7 +308,7 @@ mod tests {
 		let mut test_ee = EECore::new();
 		test_ee.write_register(1, in_1);
 
-		let instruction = ops::build_op_immediate(MipsOpcode::AddI, 1, 2, in_2);
+		let instruction = mips::build_op_immediate(MipsOpcode::AddI, 1, 2, in_2);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -314,7 +324,7 @@ mod tests {
 		let mut test_ee = EECore::new();
 		test_ee.write_register(1, in_1);
 
-		let instruction = ops::build_op_immediate(MipsOpcode::AddI, 1, 2, in_2 as u16);
+		let instruction = mips::build_op_immediate(MipsOpcode::AddI, 1, 2, in_2 as u16);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -331,7 +341,7 @@ mod tests {
 		let mut test_ee = EECore::new();
 		test_ee.write_register(1, in_1 as u64);
 
-		let instruction = ops::build_op_immediate(MipsOpcode::AddI, 1, 2, in_2 as u16);
+		let instruction = mips::build_op_immediate(MipsOpcode::AddI, 1, 2, in_2 as u16);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -349,7 +359,7 @@ mod tests {
 		test_ee.write_register(1, in_1);
 		test_ee.write_register(2, in_2);
 
-		let instruction = ops::build_op_register(MipsFunction::AddU, 1, 2, 3, 0);
+		let instruction = mips::build_op_register(MipsFunction::AddU, 1, 2, 3, 0);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -367,7 +377,7 @@ mod tests {
 		test_ee.write_register(1, in_1 as u64);
 		test_ee.write_register(2, in_2);
 
-		let instruction = ops::build_op_register(MipsFunction::AddU, 1, 2, 3, 0);
+		let instruction = mips::build_op_register(MipsFunction::AddU, 1, 2, 3, 0);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -384,7 +394,7 @@ mod tests {
 		let mut test_ee = EECore::new();
 		test_ee.write_register(1, in_1);
 
-		let instruction = ops::build_op_immediate(MipsOpcode::AddIU, 1, 2, in_2);
+		let instruction = mips::build_op_immediate(MipsOpcode::AddIU, 1, 2, in_2);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -400,7 +410,7 @@ mod tests {
 		let mut test_ee = EECore::new();
 		test_ee.write_register(1, in_1 as u64);
 
-		let instruction = ops::build_op_immediate(MipsOpcode::AddIU, 1, 2, in_2);
+		let instruction = mips::build_op_immediate(MipsOpcode::AddIU, 1, 2, in_2);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -418,9 +428,9 @@ mod tests {
 		let mut test_ee = EECore::new();
 
 		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
-			ops::build_op_immediate(MipsOpcode::LUI, 0, 1, base_address_upper),
-			ops::build_op_immediate(MipsOpcode::OrI, 1, 1, base_address_lower),
-			ops::build_op_immediate(MipsOpcode::AddIU, 1, 1, address_offset),
+			mips::build_op_immediate(MipsOpcode::LUI, 0, 1, base_address_upper),
+			mips::build_op_immediate(MipsOpcode::OrI, 1, 1, base_address_lower),
+			mips::build_op_immediate(MipsOpcode::AddIU, 1, 1, address_offset),
 		]));
 
 		assert_eq!(test_ee.read_register(1), 0x7000_3fc0);
@@ -436,7 +446,7 @@ mod tests {
 		test_ee.write_register(1, in_1);
 		test_ee.write_register(2, in_2);
 
-		let instruction = ops::build_op_register(MipsFunction::And, 1, 2, 3, 0);
+		let instruction = mips::build_op_register(MipsFunction::And, 1, 2, 3, 0);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -454,7 +464,7 @@ mod tests {
 		let mut test_ee = EECore::new();
 		test_ee.write_register(1, in_1);
 
-		let instruction = ops::build_op_immediate(MipsOpcode::AndI, 1, 2, in_2);
+		let instruction = mips::build_op_immediate(MipsOpcode::AndI, 1, 2, in_2);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -470,7 +480,7 @@ mod tests {
 		test_ee.write_register(1, in_1);
 		test_ee.write_register(2, in_2);
 
-		let instruction = ops::build_op_register(MipsFunction::DAddU, 1, 2, 3, 0);
+		let instruction = mips::build_op_register(MipsFunction::DAddU, 1, 2, 3, 0);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -487,7 +497,7 @@ mod tests {
 		test_ee.write_register(1, in_1);
 		test_ee.write_register(2, in_2);
 
-		let instruction = ops::build_op_register(MipsFunction::DAddU, 1, 2, 3, 0);
+		let instruction = mips::build_op_register(MipsFunction::DAddU, 1, 2, 3, 0);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -504,7 +514,7 @@ mod tests {
 		test_ee.write_register(1, in_1.s_ext());
 		test_ee.write_register(2, in_2.s_ext());
 
-		let instruction = ops::build_op_register(MipsFunction::Div, 1, 2, 0, 0);
+		let instruction = mips::build_op_register(MipsFunction::Div, 1, 2, 0, 0);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -523,7 +533,7 @@ mod tests {
 		let mut test_ee = EECore::new();
 
 		// Mult has no dest register.
-		let instruction = ops::build_op_register(MipsFunction::Div, 1, 2, 0, 0);
+		let instruction = mips::build_op_register(MipsFunction::Div, 1, 2, 0, 0);
 
 		// POS / POS
 		test_ee.write_register(1, pos.s_ext());
@@ -568,7 +578,7 @@ mod tests {
 		test_ee.write_register(1, in_1.s_ext());
 		test_ee.write_register(2, in_2.s_ext());
 
-		let instruction = ops::build_op_register(MipsFunction::Div, 1, 2, 0, 0);
+		let instruction = mips::build_op_register(MipsFunction::Div, 1, 2, 0, 0);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -586,7 +596,7 @@ mod tests {
 		test_ee.write_register(1, in_1.s_ext());
 		test_ee.write_register(2, in_2.s_ext());
 
-		let instruction = ops::build_op_register(MipsFunction::Div, 1, 2, 0, 0);
+		let instruction = mips::build_op_register(MipsFunction::Div, 1, 2, 0, 0);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -602,7 +612,7 @@ mod tests {
 		test_ee.write_register(1, in_1);
 		test_ee.write_register(2, in_2);
 
-		let instruction = ops::build_op_register(MipsFunction::DivU, 1, 2, 0, 0);
+		let instruction = mips::build_op_register(MipsFunction::DivU, 1, 2, 0, 0);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -620,7 +630,7 @@ mod tests {
 		test_ee.write_register(1, in_1.s_ext());
 		test_ee.write_register(2, in_2.s_ext());
 
-		let instruction = ops::build_op_register(MipsFunction::DivU, 1, 2, 0, 0);
+		let instruction = mips::build_op_register(MipsFunction::DivU, 1, 2, 0, 0);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -640,12 +650,12 @@ mod tests {
 		let mut test_ee = EECore::new();
 
 		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
-			ops::build_op_immediate(MipsOpcode::LUI, 0, src, base_address_upper),
-			ops::build_op_immediate(MipsOpcode::OrI, src, src, base_address_lower),
+			mips::build_op_immediate(MipsOpcode::LUI, 0, src, base_address_upper),
+			mips::build_op_immediate(MipsOpcode::OrI, src, src, base_address_lower),
 
-			ops::build_op_immediate(MipsOpcode::LUI, 0, cond_reg, 1),
+			mips::build_op_immediate(MipsOpcode::LUI, 0, cond_reg, 1),
 
-			ops::build_op_register(MipsFunction::MovN, src, cond_reg, dest, 0),
+			mips::build_op_register(MipsFunction::MovN, src, cond_reg, dest, 0),
 		]));
 
 		assert_eq!(test_ee.read_register(src), test_ee.read_register(dest));
@@ -654,12 +664,12 @@ mod tests {
 		let mut test_ee = EECore::new();
 
 		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
-			ops::build_op_immediate(MipsOpcode::LUI, 0, src, base_address_upper),
-			ops::build_op_immediate(MipsOpcode::OrI, src, src, base_address_lower),
+			mips::build_op_immediate(MipsOpcode::LUI, 0, src, base_address_upper),
+			mips::build_op_immediate(MipsOpcode::OrI, src, src, base_address_lower),
 
-			ops::build_op_immediate(MipsOpcode::LUI, 0, cond_reg, 0),
+			mips::build_op_immediate(MipsOpcode::LUI, 0, cond_reg, 0),
 
-			ops::build_op_register(MipsFunction::MovN, src, cond_reg, dest, 0),
+			mips::build_op_register(MipsFunction::MovN, src, cond_reg, dest, 0),
 		]));
 
 		assert_ne!(test_ee.read_register(src), test_ee.read_register(dest));
@@ -675,7 +685,7 @@ mod tests {
 		test_ee.write_register(2, in_2);
 
 		// Mult has no dest register.
-		let instruction = ops::build_op_register(MipsFunction::Mult, 1, 2, 0, 0);
+		let instruction = mips::build_op_register(MipsFunction::Mult, 1, 2, 0, 0);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -695,7 +705,7 @@ mod tests {
 		test_ee.write_register(2, in_2);
 
 		// EE's mult has a dest register...
-		let instruction = ops::build_op_register(MipsFunction::Mult, 1, 2, 3, 0);
+		let instruction = mips::build_op_register(MipsFunction::Mult, 1, 2, 3, 0);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -714,7 +724,7 @@ mod tests {
 		test_ee.write_register(1, in_1);
 		test_ee.write_register(2, in_2);
 
-		let instruction = ops::build_op_register(MipsFunction::Or, 1, 2, 3, 0);
+		let instruction = mips::build_op_register(MipsFunction::Or, 1, 2, 3, 0);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -733,7 +743,7 @@ mod tests {
 		let mut test_ee = EECore::new();
 		test_ee.write_register(1, in_1);
 
-		let instruction = ops::build_op_immediate(MipsOpcode::OrI, 1, 2, in_2);
+		let instruction = mips::build_op_immediate(MipsOpcode::OrI, 1, 2, in_2);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -750,8 +760,8 @@ mod tests {
 		let mut test_ee = EECore::new();
 
 		install_and_run_program(&mut test_ee, instructions_to_bytes(&vec![
-			ops::build_op_immediate(MipsOpcode::LUI, 0, 1, base_address_upper),
-			ops::build_op_immediate(MipsOpcode::OrI, 1, 1, base_address_lower),
+			mips::build_op_immediate(MipsOpcode::LUI, 0, 1, base_address_upper),
+			mips::build_op_immediate(MipsOpcode::OrI, 1, 1, base_address_lower),
 		]));
 
 		assert_eq!(test_ee.read_register(1) as i64, 0x7000_fff0);
@@ -765,7 +775,7 @@ mod tests {
 
 		test_ee.write_register(1, input.s_ext());
 
-		let instruction = ops::build_op_register(MipsFunction::SLL, 0, 1, 2, shift_amount);
+		let instruction = mips::build_op_register(MipsFunction::SLL, 0, 1, 2, shift_amount);
 		test_ee.execute(ops::process_instruction(instruction));
 
 		assert_eq!(test_ee.read_register(2), 0xffff_ffff_8000_0000);
@@ -786,7 +796,7 @@ mod tests {
 		test_ee.write_register(rhs_r, in_2.s_ext());
 
 		// Test positive case.
-		let instruction = ops::build_op_register(MipsFunction::SLT, lhs_r, rhs_r, dest, 0);
+		let instruction = mips::build_op_register(MipsFunction::SLT, lhs_r, rhs_r, dest, 0);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -815,7 +825,7 @@ mod tests {
 		test_ee.write_register(rhs_r, in_2);
 
 		// Test positive case.
-		let instruction = ops::build_op_register(MipsFunction::SLTU, lhs_r, rhs_r, dest, 0);
+		let instruction = mips::build_op_register(MipsFunction::SLTU, lhs_r, rhs_r, dest, 0);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -838,7 +848,7 @@ mod tests {
 		test_ee.write_register(1, in_1);
 
 		// Test positive case.
-		let instruction = ops::build_op_immediate(MipsOpcode::SLTI, 1, 2, in_2);
+		let instruction = mips::build_op_immediate(MipsOpcode::SLTI, 1, 2, in_2);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -860,7 +870,7 @@ mod tests {
 		let mut test_ee = EECore::new();
 		test_ee.write_register(1, in_1 as u64);
 
-		let instruction = ops::build_op_immediate(MipsOpcode::SLTI, 1, 2, in_2);
+		let instruction = mips::build_op_immediate(MipsOpcode::SLTI, 1, 2, in_2);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -876,7 +886,7 @@ mod tests {
 		test_ee.write_register(1, in_1);
 
 		// Test positive case.
-		let instruction = ops::build_op_immediate(MipsOpcode::SLTIU, 1, 2, in_2);
+		let instruction = mips::build_op_immediate(MipsOpcode::SLTIU, 1, 2, in_2);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -899,7 +909,7 @@ mod tests {
 		let mut test_ee = EECore::new();
 		test_ee.write_register(1, in_1.s_ext());
 
-		let instruction = ops::build_op_immediate(MipsOpcode::SLTIU, 1, 2, in_2);
+		let instruction = mips::build_op_immediate(MipsOpcode::SLTIU, 1, 2, in_2);
 
 		test_ee.execute(ops::process_instruction(instruction));
 
@@ -914,7 +924,7 @@ mod tests {
 
 		test_ee.write_register(1, input.s_ext());
 
-		let instruction = ops::build_op_register(MipsFunction::SRA, 0, 1, 2, shift_amount);
+		let instruction = mips::build_op_register(MipsFunction::SRA, 0, 1, 2, shift_amount);
 		test_ee.execute(ops::process_instruction(instruction));
 
 		assert_eq!(test_ee.read_register(2), 0xffff_ffff_c000_0000);
@@ -928,7 +938,7 @@ mod tests {
 
 		test_ee.write_register(1, input.s_ext());
 
-		let instruction = ops::build_op_register(MipsFunction::SRL, 0, 1, 2, shift_amount);
+		let instruction = mips::build_op_register(MipsFunction::SRL, 0, 1, 2, shift_amount);
 		test_ee.execute(ops::process_instruction(instruction));
 
 		assert_eq!(test_ee.read_register(2), 0x0000_0000_4000_0000);
@@ -944,7 +954,7 @@ mod tests {
 		test_ee.write_register(1, i1);
 		test_ee.write_register(2, i2);
 
-		let instruction = ops::build_op_register(MipsFunction::SubU, 1, 2, 3, 0);
+		let instruction = mips::build_op_register(MipsFunction::SubU, 1, 2, 3, 0);
 		test_ee.execute(ops::process_instruction(instruction));
 
 		assert_eq!(test_ee.read_register(3), i1 - i2);

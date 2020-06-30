@@ -1,9 +1,7 @@
 use bitflags::bitflags;
+use crate::isa::mips::Instruction;
 use super::{
-	ops::{
-		self,
-		instruction::Instruction,
-	},
+	ops,
 	EECore,
 };
 
