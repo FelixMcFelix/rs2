@@ -237,9 +237,119 @@ impl Instruction for BranchOpCode {
 	}
 }
 
-/// Currently unused.
-pub enum Pipeline {
-	Free,
-	Reserved,
-	Active(OpCode),
+bitflags!{
+/// Bitfield representing pipe dependencies for instruction issue.
+///
+/// This consists of several combinations:
+///  * Physical pipes as the building blocks (I0, I1, ...).
+///  * Pipe sets for joint physical requirements.
+/// In the name of optimsation, aliases should be considered "joint".
+#[derive(Default)]
+pub struct Pipe: u64 {
+	/// Physical Integer 0 pipe.
+	const I0 = 0b00_0001;
+	/// Physical Integer 1 pipe.
+	const I1 = 0b00_0010;
+	/// Physical Load/Store pipe.
+	const LS = 0b00_0100;
+	/// Physical Branch pipe.
+	const BR = 0b00_1000;
+	/// Physical COP1 pipe.
+	const C1 = 0b01_0000;
+	/// Physical COP2 pipe.
+	const C2 = 0b10_0000;
+
+	/// Multimedia (128-bit) instructions. Joint.
+	const WIDE_OPERATE = Self::I0.bits
+		| Self::I1.bits;
+
+	/// Most floating-point commands (COP1). Joint.
+	const COP1_OPERATE = Self::I0.bits
+		| Self::C1.bits;
+
+	/// Move, Load/Store to COP1 (FPC). Joint.
+	const COP1_MOVE = Self::LS.bits
+		| Self::C1.bits;
+
+	/// VU Operations (COP2). Joint.
+	const COP2_OPERATE = Self::I0.bits
+		| Self::C2.bits;
+
+	/// Move, Load/Store to COP2 (VU). Joint.
+	const COP2_MOVE = Self::LS.bits
+		| Self::C2.bits;
+
+	/// Mask for all pipes compatible with the "first instruction
+	/// slot" in dual issue mode.
+	const LOGICAL0 = Self::I0.bits
+		| Self::BR.bits
+		| Self::C1.bits
+		| Self::C2.bits;
+
+	/// Mask for all pipes compatible with the "second instruction
+	/// slot" in dual issue mode.
+	const LOGICAL1 = Self::I1.bits
+		| Self::LS.bits
+		| Self::BR.bits
+		| Self::C1.bits
+		| Self::C2.bits;
 }
+}
+
+pub mod requirement {
+	//! Constants containing the pipeline requirements for different
+	//! instruction classes on the EE Core.
+
+	use super::Pipe;
+
+	pub enum Requirement {
+		Joint(Pipe),
+		Disjoint(Pipe, Pipe),
+	}
+
+	/// Pipeline requirement for Load/store, 128-bit load-store, prefetch, cache.
+	pub const LS: Requirement = Requirement::Joint(Pipe::LS);
+
+	/// Pipeline requirement for synchronisation.
+	pub const SYNC: Requirement = Requirement::Joint(Pipe::I1);
+
+	/// Pipeline requirement for Leading-Zero Count.
+	pub const LZC: Requirement = Requirement::Joint(Pipe::I1);
+
+	/// Pipeline requirement for exception return.
+	pub const ERET: Requirement = Requirement::Joint(Pipe::I1);
+
+	/// Pipeline requirement for moves to/from EE's SA register.
+	pub const SA: Requirement = Requirement::Joint(Pipe::I0);
+
+	/// Pipeline requirement for COP0 move/operate.
+	pub const COP0: Requirement = Requirement::Joint(Pipe::LS);
+
+	/// Pipeline requirement for COP1 (FPU) Loads/Stores.
+	pub const COP1_MOVE: Requirement = Requirement::Joint(Pipe::COP1_MOVE);
+
+	/// Pipeline requirement for COP1 (FPU) Operations.
+	pub const COP1_OPERATE: Requirement = Requirement::Joint(Pipe::COP1_OPERATE);
+
+	/// Pipeline requirement for COP1 (VU) Loads/Stores.
+	pub const COP2_MOVE: Requirement = Requirement::Joint(Pipe::COP2_MOVE);
+
+	/// Pipeline requirement for COP0 (VU) Operations.
+	pub const COP2_OPERATE: Requirement = Requirement::Joint(Pipe::COP2_OPERATE);
+
+	/// Pipeline requirement for Arithmetic, Shift, Logical, Trap, Syscall, Break.
+	pub const ALU: Requirement = Requirement::Disjoint(Pipe::I0, Pipe::I1);
+
+	/// Pipeline requirement for Multiply(-accumulate) and move for HI/LO.
+	pub const MAC0: Requirement = Requirement::Joint(Pipe::I0);
+
+	/// Pipeline requirement for Multiply(-accumulate) and move for HI1/LO1.
+	pub const MAC1: Requirement = Requirement::Joint(Pipe::I1);
+
+	/// Pipeline requirement for branch instructions.
+	pub const BRANCH: Requirement = Requirement::Joint(Pipe::BR);
+
+	/// Pipeline requirement for Multimedia (128-bit) instructions.
+	pub const WIDE_OPERATE: Requirement = Requirement::Joint(Pipe::WIDE_OPERATE);
+}
+

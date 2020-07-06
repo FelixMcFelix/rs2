@@ -94,3 +94,90 @@ impl RegImmFunction {
 		Self::from_u8(raw_func)
 	}
 }
+
+/// Consistent functions shared between a MIPS CPU.
+pub trait Cpu {
+	type Register;
+
+	fn read_register(&self, index: u8) -> Self::Register;
+	fn write_register(&mut self, index: u8, value: Self::Register);
+
+	fn read_cop0(&self, index: u8) -> Self::Register;
+	fn write_cop0(&mut self, index: u8, value: Self::Register);
+
+	fn read_hi(&self) -> Self::Register;
+	fn write_hi(&mut self, value: Self::Register);
+
+	fn read_lo(&self) -> Self::Register;
+	fn write_lo(&mut self, value: Self::Register);
+}
+
+/// Mask of available/required registers and instruction pipes for issuing.
+pub struct Capability {
+	/// Combination of registers being written to, and CPU instruction pipes consumed.
+	pub write: u64,
+
+	/// Combination of registers being read from.
+	pub read: u64,
+}
+
+impl Capability {
+	pub const REG_PC: u64 = 1 << 32;
+	pub const REG_SA: u64 = 1 << 33;
+	pub const REG_HI: u64 = 1 << 34;
+	pub const REG_LO: u64 = 1 << 35;
+	pub const REG_HI1: u64 = 1 << 36;
+	pub const REG_LO1: u64 = 1 << 37;
+
+	/// Shift amount for pipeline requirements.
+	pub const PIPELINE_SHIFT: u64 = 38;
+
+	pub fn all() -> Self {
+		Self {
+			write: u64::MAX,
+			read: u64::MAX,
+		}
+	}
+
+	pub fn write_d_read_ts(i: u32) -> Self {
+		Self {
+			write: 1 << i.r_get_destination(),
+			read: (1 << i.ri_get_target()) | (1 << i.ri_get_source()),
+		}
+	}
+
+	pub fn write_d_read_s(i: u32) -> Self {
+		Self {
+			write: 1 << i.r_get_destination(),
+			read: 1 << i.ri_get_source(),
+		}
+	}
+
+	pub fn write_d_read_t(i: u32) -> Self {
+		Self {
+			write: 1 << i.r_get_destination(),
+			read: 1 << i.ri_get_target(),
+		}
+	}
+
+	pub fn write_t_read_s(i: u32) -> Self {
+		Self {
+			write: 1 << i.ri_get_target(),
+			read: 1 << i.ri_get_source(),
+		}
+	}
+
+	pub fn jump() -> Self {
+		Self {
+			write: Self::REG_PC,
+			read: 0,
+		}
+	}
+
+	pub fn jump_link() -> Self {
+		Self {
+			write: Self::REG_PC,
+			read: 1 << 31,
+		}
+	}
+}
