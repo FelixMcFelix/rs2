@@ -113,12 +113,27 @@ pub trait Cpu {
 }
 
 /// Mask of available/required registers and instruction pipes for issuing.
+#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Capability {
 	/// Combination of registers being written to, and CPU instruction pipes consumed.
 	pub write: u64,
 
 	/// Combination of registers being read from.
 	pub read: u64,
+}
+
+/// Wrapper around `Capability` to encode instructions
+/// who are compatible with fitting into several pipeline slots.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum Requirement<T> {
+	Joint(T),
+	Disjoint(T, T),
+}
+
+impl<T: Default> Default for Requirement<T> {
+	fn default() -> Self {
+		Requirement::Joint(Default::default())
+	}
 }
 
 impl Capability {
@@ -132,6 +147,14 @@ impl Capability {
 	/// Shift amount for pipeline requirements.
 	pub const PIPELINE_SHIFT: u64 = 38;
 
+	#[inline]
+	pub fn normalised(write: u64, read: u64) -> Self {
+		Self {
+			write,
+			read: read & (read ^ write),
+		}
+	}
+
 	pub fn all() -> Self {
 		Self {
 			write: u64::MAX,
@@ -140,44 +163,132 @@ impl Capability {
 	}
 
 	pub fn write_d_read_ts(i: u32) -> Self {
-		Self {
-			write: 1 << i.r_get_destination(),
-			read: (1 << i.ri_get_target()) | (1 << i.ri_get_source()),
-		}
+		Self::normalised(
+			1 << i.r_get_destination(),
+			(1 << i.ri_get_target()) | (1 << i.ri_get_source()),
+		)
 	}
 
 	pub fn write_d_read_s(i: u32) -> Self {
-		Self {
-			write: 1 << i.r_get_destination(),
-			read: 1 << i.ri_get_source(),
-		}
+		Self::normalised(
+			1 << i.r_get_destination(),
+			1 << i.ri_get_source(),
+		)
 	}
 
 	pub fn write_d_read_t(i: u32) -> Self {
-		Self {
-			write: 1 << i.r_get_destination(),
-			read: 1 << i.ri_get_target(),
-		}
+		Self::normalised(
+			1 << i.r_get_destination(),
+			1 << i.ri_get_target(),
+		)
+	}
+
+	pub fn write_d(i: u32) -> Self {
+		Self::normalised(
+			1 << i.r_get_destination(),
+			0,
+		)
 	}
 
 	pub fn write_t_read_s(i: u32) -> Self {
-		Self {
-			write: 1 << i.ri_get_target(),
-			read: 1 << i.ri_get_source(),
-		}
+		Self::normalised(
+			1 << i.ri_get_target(),
+			1 << i.ri_get_source(),
+		)
 	}
 
-	pub fn jump() -> Self {
+	pub fn write_t_read_d(i: u32) -> Self {
+		Self::normalised(
+			1 << i.ri_get_target(),
+			1 << i.r_get_destination(),
+		)
+	}
+
+	pub fn write_t(i: u32) -> Self {
+		Self::normalised(
+			1 << i.ri_get_target(),
+			0,
+		)
+	}
+
+	pub fn read_ts(i: u32) -> Self {
+		Self::normalised(
+			0,
+			(1 << i.ri_get_target()) | (1 << i.ri_get_source()),
+		)
+	}
+
+	pub fn read_s(i: u32) -> Self {
+		Self::normalised(
+			0,
+			1 << i.ri_get_source(),
+		)
+	}
+
+	pub fn read_t(i: u32) -> Self {
+		Self::normalised(
+			0,
+			1 << i.ri_get_target(),
+		)
+	}
+
+	pub fn read_td(i: u32) -> Self {
+		Self::normalised(
+			0,
+			(1 << i.ri_get_target()) | 1 << i.r_get_destination(),
+		)
+	}
+
+	pub fn jump(_i: u32) -> Self {
 		Self {
 			write: Self::REG_PC,
 			read: 0,
 		}
 	}
 
-	pub fn jump_link() -> Self {
+	pub fn jump_link(_i: u32) -> Self {
+		Self {
+			write: Self::REG_PC | (1 << 31),
+			read: 0,
+		}
+	}
+
+	pub fn jump_link_reg(i: u32) -> Self {
+		Self {
+			write: Self::REG_PC | (1 << i.r_get_destination()),
+			read: (1 << i.ri_get_source()),
+		}
+	}
+
+	pub fn jump_reg(i: u32) -> Self {
 		Self {
 			write: Self::REG_PC,
-			read: 1 << 31,
+			read: (1 << i.ri_get_source()),
 		}
+	}
+
+	pub fn branch_compare(i: u32) -> Self {
+		Self::normalised(
+			Self::REG_PC,
+			(1 << i.ri_get_source()) | (1 << i.ri_get_source()),
+		)
+	}
+
+	pub fn branch_read_s(i: u32) -> Self {
+		Self::normalised(
+			Self::REG_PC,
+			1 << i.ri_get_source(),
+		)
+	}
+
+	pub fn mul_div(i: u32) -> Self {
+		Self::normalised(
+			Self::REG_HI | Self::REG_LO,
+			(1 << i.ri_get_source()) | (1 << i.ri_get_source()),
+		)
+	}
+
+	pub fn no_req(_i: u32) -> Self {
+		Default::default()
 	}
 }

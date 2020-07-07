@@ -143,10 +143,7 @@ mod tests {
 		LittleEndian,
 	};
 	use crate::{
-		core::ops::{
-			self,
-			constants::*,
-		},
+		core::ops,
 		isa::mips::{
 			self,
 			ee::{CacheFunction, Cop0Function, Cop1Function},

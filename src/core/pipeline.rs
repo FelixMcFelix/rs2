@@ -1,5 +1,5 @@
 use bitflags::bitflags;
-use crate::isa::mips::Instruction;
+use crate::isa::mips::{Capability, Instruction, Requirement};
 use super::{
 	ops,
 	EECore,
@@ -35,6 +35,7 @@ pub struct OpCode {
 	pub raw: u32,
 	pub action: EEAction,
 	pub delay: u8,
+	pub requirements: Requirement<Capability>,
 }
 
 impl Default for OpCode {
@@ -43,6 +44,7 @@ impl Default for OpCode {
 			raw: 0,
 			action: ops::nop as EEAction,
 			delay: 0,
+			requirements: Default::default(),
 		}
 	}
 }
@@ -53,6 +55,7 @@ impl std::fmt::Debug for OpCode {
 			.field("raw", &format!("{:032b}", self.raw))
 			.field("delay", &self.delay)
 			.field("action", &"<pointer>")
+			.field("requirements", &self.requirements)
 			.finish()
 	}
 }
@@ -296,60 +299,26 @@ pub struct Pipe: u64 {
 }
 }
 
-pub mod requirement {
-	//! Constants containing the pipeline requirements for different
-	//! instruction classes on the EE Core.
+impl Requirement<Pipe> {
+	pub fn fuse_registers(self, mut register_list: Capability) -> Requirement<Capability> {
+		use Requirement::*;
+		match self {
+			Joint(a) => {
+				let pipes = a.bits();
+				register_list.write |= pipes << Capability::PIPELINE_SHIFT;
 
-	use super::Pipe;
+				Joint(register_list)
+			},
+			Disjoint(a, b) => {
+				let pipes = a.bits();
+				let alt_pipes = b.bits();
+				let mut alt_list = register_list;
 
-	pub enum Requirement {
-		Joint(Pipe),
-		Disjoint(Pipe, Pipe),
+				register_list.write |= pipes << Capability::PIPELINE_SHIFT;
+				alt_list.write |= alt_pipes << Capability::PIPELINE_SHIFT;
+
+				Disjoint(register_list, alt_list)
+			},
+		}
 	}
-
-	/// Pipeline requirement for Load/store, 128-bit load-store, prefetch, cache.
-	pub const LS: Requirement = Requirement::Joint(Pipe::LS);
-
-	/// Pipeline requirement for synchronisation.
-	pub const SYNC: Requirement = Requirement::Joint(Pipe::I1);
-
-	/// Pipeline requirement for Leading-Zero Count.
-	pub const LZC: Requirement = Requirement::Joint(Pipe::I1);
-
-	/// Pipeline requirement for exception return.
-	pub const ERET: Requirement = Requirement::Joint(Pipe::I1);
-
-	/// Pipeline requirement for moves to/from EE's SA register.
-	pub const SA: Requirement = Requirement::Joint(Pipe::I0);
-
-	/// Pipeline requirement for COP0 move/operate.
-	pub const COP0: Requirement = Requirement::Joint(Pipe::LS);
-
-	/// Pipeline requirement for COP1 (FPU) Loads/Stores.
-	pub const COP1_MOVE: Requirement = Requirement::Joint(Pipe::COP1_MOVE);
-
-	/// Pipeline requirement for COP1 (FPU) Operations.
-	pub const COP1_OPERATE: Requirement = Requirement::Joint(Pipe::COP1_OPERATE);
-
-	/// Pipeline requirement for COP1 (VU) Loads/Stores.
-	pub const COP2_MOVE: Requirement = Requirement::Joint(Pipe::COP2_MOVE);
-
-	/// Pipeline requirement for COP0 (VU) Operations.
-	pub const COP2_OPERATE: Requirement = Requirement::Joint(Pipe::COP2_OPERATE);
-
-	/// Pipeline requirement for Arithmetic, Shift, Logical, Trap, Syscall, Break.
-	pub const ALU: Requirement = Requirement::Disjoint(Pipe::I0, Pipe::I1);
-
-	/// Pipeline requirement for Multiply(-accumulate) and move for HI/LO.
-	pub const MAC0: Requirement = Requirement::Joint(Pipe::I0);
-
-	/// Pipeline requirement for Multiply(-accumulate) and move for HI1/LO1.
-	pub const MAC1: Requirement = Requirement::Joint(Pipe::I1);
-
-	/// Pipeline requirement for branch instructions.
-	pub const BRANCH: Requirement = Requirement::Joint(Pipe::BR);
-
-	/// Pipeline requirement for Multimedia (128-bit) instructions.
-	pub const WIDE_OPERATE: Requirement = Requirement::Joint(Pipe::WIDE_OPERATE);
 }
-

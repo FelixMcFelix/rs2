@@ -139,7 +139,9 @@ fn individual_r_type_matches(instructions: &ExprArray) -> proc_macro2::TokenStre
 		if let Expr::Tuple(ref mut instruction_data) = instruction {
 			let elems = &mut instruction_data.elems;
 
-			assert!(elems.len() == 4);
+			assert!(elems.len() == 6);
+			let reg_access_func = elems.pop().unwrap().into_value();
+			let pipes_set = elems.pop().unwrap().into_value();
 			let func_delay = elems.pop().unwrap().into_value();
 			let func_code = elems.pop().unwrap().into_value();
 			let func_name = elems.pop().unwrap().into_value();
@@ -147,10 +149,17 @@ fn individual_r_type_matches(instructions: &ExprArray) -> proc_macro2::TokenStre
 
 			match_parts.push(quote!{
 				Some(#func_code) => {
+					use crate::isa::mips::Requirement::*;
+
 					let lname = stringify!(#op_name);
 					trace!("{}; {:020b} {:06b}", lname, (instruction << 6) >> 12, instruction & 0b11_1111);
+
+					let regs = #reg_access_func(instruction);
+					let requirements = #pipes_set.fuse_registers(regs);
+
 					out.action = #func_name as crate::core::pipeline::EEAction;
 					out.delay = #func_delay;
+					out.requirements = requirements;
 				},
 			});
 		}
@@ -165,7 +174,9 @@ fn ij_type_matches(instructions: &ExprArray) -> proc_macro2::TokenStream {
 		if let Expr::Tuple(ref mut instruction_data) = instruction {
 			let elems = &mut instruction_data.elems;
 
-			assert!(elems.len() == 4);
+			assert!(elems.len() == 6);
+			let reg_access_func = elems.pop().unwrap().into_value();
+			let pipes_set = elems.pop().unwrap().into_value();
 			let func_delay = elems.pop().unwrap().into_value();
 			let func_code = elems.pop().unwrap().into_value();
 			let func_name = elems.pop().unwrap().into_value();
@@ -175,8 +186,13 @@ fn ij_type_matches(instructions: &ExprArray) -> proc_macro2::TokenStream {
 				Some(#func_code) => {
 					let lname = stringify!(#op_name);
 					trace!("{}; {:026b}", lname, (instruction << 6) >> 6);
+
+					let regs = #reg_access_func(instruction);
+					let requirements = #pipes_set.fuse_registers(regs);
+
 					out.action = #func_name as crate::core::pipeline::EEAction;
 					out.delay = #func_delay;
+					out.requirements = requirements;
 				},
 			});
 		}

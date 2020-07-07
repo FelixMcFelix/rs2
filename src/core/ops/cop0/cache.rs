@@ -41,10 +41,7 @@ mod tests {
 		core::{
 			constants::*,
 			cop0::Register,
-			ops::{
-				self,
-				constants::*,
-			},
+			ops,
 		},
 		isa::mips::{
 			ee::{CacheFunction, Cop0Function, Cop1Function},

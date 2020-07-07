@@ -344,6 +344,7 @@ impl EECore {
 		let i2 = LittleEndian::read_u32(&ops[OPCODE_LENGTH_BYTES..]);
 
 		let p1 = ops::process_instruction(i1);
+		trace!("Decoded: {:?}", p1);
 		self.execute(p1);
 
 		if dual_issue {
@@ -355,6 +356,7 @@ impl EECore {
 			};
 
 			let p2 = ops::process_instruction(i2);
+			trace!("Decoded 2: {:?}", p2);
 			self.execute(p2);
 		}
 

@@ -232,10 +232,7 @@ pub fn subu(cpu: &mut EECore, data: &OpCode) {
 mod tests {
 	use super::*;
 	use crate::{
-		core::ops::{
-			self,
-			constants::*,
-		},
+		core::ops,
 		isa::mips::{
 			self,
 			ee::{CacheFunction, Cop0Function, Cop1Function},
