@@ -1,5 +1,6 @@
 use bitflags::bitflags;
 use crate::isa::mips::{Capability, Instruction, Requirement};
+use std::cmp::{Ordering};
 use super::{
 	ops,
 	EECore,
@@ -36,6 +37,25 @@ pub struct OpCode {
 	pub action: EEAction,
 	pub delay: u8,
 	pub requirements: Requirement<Capability>,
+}
+
+impl OpCode {
+	pub fn make_live(self, time: u64) -> LiveAction {
+		LiveAction {
+			time: time + self.delay as u64 - 1,
+			action: self,
+		}
+	}
+
+	#[inline]
+	pub fn needs_queue(&self) -> bool {
+		self.delay != 1
+	}
+
+	#[inline]
+	pub fn pipeline_fits(&self, cpu_cap: &Capability) -> Slot {
+		self.requirements.pipeline_fits(cpu_cap)
+	}
 }
 
 impl Default for OpCode {
@@ -139,7 +159,35 @@ impl Instruction for OpCode {
 	}
 }
 
-/// The queued form of a CPU instruction.
+/// Instruction paired with an execution time.
+///
+/// Queued up internally for asynchronous execution where required.
+pub struct LiveAction {
+	pub time: u64,
+	pub action: OpCode,
+}
+
+impl Eq for LiveAction {}
+
+impl PartialEq for LiveAction {
+	fn eq(&self, other: &Self) -> bool {
+		self.time == other.time
+	}
+}
+
+impl PartialOrd for LiveAction {
+	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+		Some(self.cmp(other))
+	}
+}
+
+impl Ord for LiveAction {
+	fn cmp(&self, other: &Self) -> Ordering {
+		self.time.cmp(&other.time)
+	}
+}
+
+/// The second half of a branch instruction.
 ///
 /// This contains the necessary data for execution, a function pointer,
 /// and a delay. An action is held in the relevant pipeline until its delay
@@ -320,5 +368,253 @@ impl Requirement<Pipe> {
 				Disjoint(register_list, alt_list)
 			},
 		}
+	}
+}
+
+impl Requirement<Capability> {
+	#[inline]
+	pub fn pipeline_fits(&self, cpu_cap: &Capability) -> Slot {
+		match self {
+			Requirement::Joint(a) => {
+				pipeline_capability_fits(cpu_cap, &a)
+			},
+			Requirement::Disjoint(a, b) => {
+				let s1 = pipeline_capability_fits(cpu_cap, &a);
+				let s2 = pipeline_capability_fits(cpu_cap, &b);
+
+				s1.combine(s2)
+			},
+		}
+	}
+}
+
+fn pipeline_capability_fits(cpu: &Capability, instr: &Capability) -> Slot {
+	let read_mask = cpu.read & instr.read;
+	let write_mask = cpu.write & instr.write;
+
+	let valid = read_mask == instr.read && write_mask == instr.write;
+
+	if valid {
+		let pipes = write_mask >> Capability::PIPELINE_SHIFT;
+		let fits_in_0 = (pipes & Pipe::LOGICAL0.bits()) == pipes;
+		let fits_in_1 = (pipes & Pipe::LOGICAL1.bits()) == pipes;
+
+		if fits_in_0 {
+			if fits_in_1 {
+				Slot::Either
+			} else {
+				Slot::Pipe0
+			}
+		} else if fits_in_1 {
+			Slot::Pipe1
+		} else {
+			Slot::Both
+		}
+	} else {
+		Slot::Neither
+	}
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Slot {
+	Neither,
+	Pipe0,
+	Pipe1,
+	Either,
+	Both,
+}
+
+impl Slot {
+	pub fn combine(self, other: Self) -> Self {
+		use Slot::*;
+
+		match (self, other) {
+			(Pipe0, Pipe1) | (Pipe1, Pipe0) => Either,
+			(Neither, a) | (a, Neither) => a,
+			a => {println!("{:?}",a);unreachable!()},
+		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use crate::{
+		core::{
+			constants::requirements::*,
+			cop0::Register,
+		},
+		isa::mips::{
+			self,
+			ee::*,
+			Capability,
+			Opcode as MipsOpcode,
+		},
+	};
+	use super::*;
+
+	#[test]
+	fn ls_function_in_pipe_1() {
+		assert_eq!(
+			LS.fuse_registers(Default::default()).pipeline_fits(&Capability::all()),
+			Slot::Pipe1,
+		);
+	}
+
+	#[test]
+	fn sync_function_in_pipe_1() {
+		assert_eq!(
+			SYNC.fuse_registers(Default::default()).pipeline_fits(&Capability::all()),
+			Slot::Pipe1,
+		);
+	}
+
+	#[test]
+	fn lzc_function_in_pipe_1() {
+		assert_eq!(
+			LZC.fuse_registers(Default::default()).pipeline_fits(&Capability::all()),
+			Slot::Pipe1,
+		);
+	}
+
+	#[test]
+	fn eret_function_in_pipe_1() {
+		assert_eq!(
+			ERET.fuse_registers(Default::default()).pipeline_fits(&Capability::all()),
+			Slot::Pipe1,
+		);
+	}
+
+	#[test]
+	fn sa_function_in_pipe_0() {
+		assert_eq!(
+			SA.fuse_registers(Default::default()).pipeline_fits(&Capability::all()),
+			Slot::Pipe0,
+		);
+	}
+
+	#[test]
+	fn cop0_function_in_pipe_1() {
+		assert_eq!(
+			COP0.fuse_registers(Default::default()).pipeline_fits(&Capability::all()),
+			Slot::Pipe1,
+		);
+	}
+
+	#[test]
+	fn cop1_move_function_in_pipe_1() {
+		assert_eq!(
+			COP1_MOVE.fuse_registers(Default::default()).pipeline_fits(&Capability::all()),
+			Slot::Pipe1,
+		);
+	}
+
+	#[test]
+	fn cop2_move_function_in_pipe_1() {
+		assert_eq!(
+			COP2_MOVE.fuse_registers(Default::default()).pipeline_fits(&Capability::all()),
+			Slot::Pipe1,
+		);
+	}
+
+	#[test]
+	fn cop1_operate_function_in_pipe_0() {
+		assert_eq!(
+			COP1_OPERATE.fuse_registers(Default::default()).pipeline_fits(&Capability::all()),
+			Slot::Pipe0,
+		);
+	}
+
+	#[test]
+	fn cop2_operate_function_in_pipe_0() {
+		assert_eq!(
+			COP2_OPERATE.fuse_registers(Default::default()).pipeline_fits(&Capability::all()),
+			Slot::Pipe0,
+		);
+	}
+
+	#[test]
+	fn alu_function_in_either_slot() {
+		assert_eq!(
+			ALU.fuse_registers(Default::default()).pipeline_fits(&Capability::all()),
+			Slot::Either,
+		);
+	}
+
+	#[test]
+	fn mac0_function_in_pipe_0() {
+		assert_eq!(
+			MAC0.fuse_registers(Default::default()).pipeline_fits(&Capability::all()),
+			Slot::Pipe0,
+		);
+	}
+
+	#[test]
+	fn mac1_function_in_pipe_1() {
+		assert_eq!(
+			MAC1.fuse_registers(Default::default()).pipeline_fits(&Capability::all()),
+			Slot::Pipe1,
+		);
+	}
+
+	#[test]
+	fn branch_function_in_either_slot() {
+		assert_eq!(
+			BRANCH.fuse_registers(Default::default()).pipeline_fits(&Capability::all()),
+			Slot::Either,
+		);
+	}
+
+	#[test]
+	fn wide_function_in_both_slots() {
+		assert_eq!(
+			WIDE_OPERATE.fuse_registers(Default::default()).pipeline_fits(&Capability::all()),
+			Slot::Both,
+		);
+	}
+
+	#[test]
+	fn alu_function_narrows() {
+		// Suppose MAC0 or MAC1 are asyncronously holding up the I0/1 pipes.
+		let mut mac0_in_use = Capability::all();
+		mac0_in_use.write &= !(Pipe::I0.bits() << Capability::PIPELINE_SHIFT);
+
+		assert_eq!(
+			ALU.fuse_registers(Default::default()).pipeline_fits(&mac0_in_use),
+			Slot::Pipe1,
+		);
+
+		let mut mac1_in_use = Capability::all();
+		mac1_in_use.write &= !(Pipe::I1.bits() << Capability::PIPELINE_SHIFT);
+
+		assert_eq!(
+			ALU.fuse_registers(Default::default()).pipeline_fits(&mac1_in_use),
+			Slot::Pipe0,
+		);
+	}
+
+	#[test]
+	fn shared_pipe_consumes_both() {
+		let mut pipe_in_use = Capability::all();
+		pipe_in_use.write &= !(Pipe::BR.bits() << Capability::PIPELINE_SHIFT);
+
+		assert_eq!(
+			BRANCH.fuse_registers(Default::default()).pipeline_fits(&pipe_in_use),
+			Slot::Neither,
+		);
+	}
+
+	#[test]
+	fn mfc0_with_register_deps_in_pipe_1() {
+		// Suppose MAC0 or MAC1 are asyncronously holding up the I0/1 pipes.
+		let opcode = ops::process_instruction(
+			mips::build_op_register_custom(
+				MipsOpcode::Cop0, 0, MF0, 26, Register::PRId as u8, 0
+			)
+		);
+
+		assert_eq!(
+			opcode.pipeline_fits(&Capability::all()),
+			Slot::Pipe1,
+		);
 	}
 }

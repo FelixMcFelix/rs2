@@ -11,6 +11,18 @@ use byteorder::{
 	LittleEndian,
 	ByteOrder,
 };
+use crate::{
+	isa::mips::Capability,
+	memory::{
+		constants::*,
+		mmu::{
+			self,
+			Mmu,
+			MmuAddress,
+		},
+		Memory,
+	},
+};
 use constants::*;
 use cop0::*;
 use enum_primitive::*;
@@ -20,14 +32,9 @@ use exceptions::{
 };
 use mode::PrivilegeLevel;
 use pipeline::*;
-use super::memory::{
-	constants::*,
-	mmu::{
-		self,
-		Mmu,
-		MmuAddress,
-	},
-	Memory,
+use std::{
+	cmp::Reverse,
+	collections::BinaryHeap,
 };
 
 pub struct EECore {
@@ -52,6 +59,13 @@ pub struct EECore {
 	/// Whether dual issue of instructions is enabled or disabled.
 	pub dual_issue: bool,
 
+	/// Registers and physical pipes 
+	pub usable_parts: Capability,
+
+	pub clock: u64,
+
+	waiting_asyncs: BinaryHeap<Reverse<LiveAction>>,
+
 	excepted_this_cycle: bool,
 }
 
@@ -72,6 +86,11 @@ impl EECore {
 			branch_delay_slot_active: None,
 
 			dual_issue: false,
+
+			usable_parts: Capability::all(),
+
+			clock: 0,
+			waiting_asyncs: BinaryHeap::with_capacity(6), // 6 Physical pipes.
 
 			excepted_this_cycle: false,
 		}
@@ -332,6 +351,8 @@ impl EECore {
 			self.throw_l1_exception(L1Exception::Interrupt(7))
 		}
 
+		let count = self.clock.wrapping_add(1);
+
 		let dual_issue = self.dual_issue;
 		let might_jump = self.branch_delay_slot_active.is_some();
 
@@ -347,6 +368,22 @@ impl EECore {
 		trace!("Decoded: {:?}", p1);
 		self.execute(p1);
 
+		trace!("Where?: {:?}", p1.pipeline_fits(&self.usable_parts));
+
+		// only make live if queueing...
+		// let x = p1.make_live();
+
+		// check capabilities for each pipeline.
+
+		// if time is this cycle, just do.
+		//  why?
+		//  remove queue cost
+		//  remove update costs for capability set.
+		// otherwise, add to 
+
+		// reads subtract from write.
+		// writes subtract from read + write.
+
 		if dual_issue {
 			trace!("PC: {:08x}", self.pc_register);
 			let i2 = if might_jump {
@@ -358,6 +395,7 @@ impl EECore {
 			let p2 = ops::process_instruction(i2);
 			trace!("Decoded 2: {:?}", p2);
 			self.execute(p2);
+			trace!("Where?: {:?}", p2.pipeline_fits(&self.usable_parts));
 		}
 
 		self.excepted_this_cycle = false;

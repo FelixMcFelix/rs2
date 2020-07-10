@@ -136,6 +136,22 @@ impl<T: Default> Default for Requirement<T> {
 	}
 }
 
+impl<T> Requirement<T> {
+	pub fn first(&self) -> &T {
+		match self {
+			Requirement::Joint(a) => &a,
+			Requirement::Disjoint(a, _b) => &a,
+		}
+	}
+
+	pub fn second(&self) -> Option<&T> {
+		match self {
+			Requirement::Joint(_a) => None,
+			Requirement::Disjoint(_a, b) => Some(&b),
+		}
+	}
+}
+
 impl Capability {
 	pub const REG_PC: u64 = 1 << 32;
 	pub const REG_SA: u64 = 1 << 33;
@@ -146,6 +162,12 @@ impl Capability {
 
 	/// Shift amount for pipeline requirements.
 	pub const PIPELINE_SHIFT: u64 = 38;
+
+	/// Mask to select all registers.
+	pub const REGISTER_MASK: u64 = (1 << Self::PIPELINE_SHIFT) - 1;
+
+	/// Mask to select all non-registers.
+	pub const PIPE_MASK: u64 = !Self::REGISTER_MASK;
 
 	#[inline]
 	pub fn normalised(write: u64, read: u64) -> Self {

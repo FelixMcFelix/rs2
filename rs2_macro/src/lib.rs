@@ -64,6 +64,7 @@ pub fn mips_ops(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
 			if instruction == 0 {
 				trace!("Explicit NOP");
+				out.requirements = crate::core::constants::requirements::ALU.fuse_registers(Default::default());
 				return out;
 			}
 

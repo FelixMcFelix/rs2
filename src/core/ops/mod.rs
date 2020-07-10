@@ -70,12 +70,12 @@ rs2_macro::mips_ops!([
 			(IXSTG, nop, CacheFunction::IXSTG, INTEGER_LOAD_STORE_DELAY, req::LS, Cap::no_req),
 		]),
 		(MipsOpcode::Cop0, "COP0", Cop0Function::decode, [
-			(MFBPC, cop0::mfc0, Cop0Function::MFBPC, INTEGER_LOAD_STORE_DELAY, req::ALU, Cap::write_t),
-			(MFC0, cop0::mfc0, Cop0Function::MFC0, INTEGER_LOAD_STORE_DELAY, req::ALU, Cap::write_t_read_d),
-			(MTBPC, cop0::mtc0, Cop0Function::MTBPC, INTEGER_LOAD_STORE_DELAY, req::ALU, Cap::read_t),
-			(MTC0, cop0::mtc0, Cop0Function::MTC0, INTEGER_LOAD_STORE_DELAY, req::ALU, Cap::read_td),
-			(TLBWI, cop0::tlbwi, Cop0Function::TlbWI, INTEGER_LOAD_STORE_DELAY, req::ALU, Cap::no_req),
-			(TLBWR, cop0::tlbwr, Cop0Function::TlbWR, INTEGER_LOAD_STORE_DELAY, req::ALU, Cap::no_req),
+			(MFBPC, cop0::mfc0, Cop0Function::MFBPC, INTEGER_LOAD_STORE_DELAY, req::COP0, Cap::write_t),
+			(MFC0, cop0::mfc0, Cop0Function::MFC0, INTEGER_LOAD_STORE_DELAY, req::COP0, Cap::write_t_read_d),
+			(MTBPC, cop0::mtc0, Cop0Function::MTBPC, INTEGER_LOAD_STORE_DELAY, req::COP0, Cap::read_t),
+			(MTC0, cop0::mtc0, Cop0Function::MTC0, INTEGER_LOAD_STORE_DELAY, req::COP0, Cap::read_td),
+			(TLBWI, cop0::tlbwi, Cop0Function::TlbWI, INTEGER_LOAD_STORE_DELAY, req::COP0, Cap::no_req),
+			(TLBWR, cop0::tlbwr, Cop0Function::TlbWR, INTEGER_LOAD_STORE_DELAY, req::COP0, Cap::no_req),
 		]),
 		(MipsOpcode::Cop1, "COP1", Cop1Function::decode, [
 			// N/A
